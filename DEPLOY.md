@@ -1,4 +1,4 @@
-# Deploying NAS Book Search to your Synology DS920+
+# Deploying Search Wizard to a Synology NAS
 
 This guide assumes you have no Docker experience. It walks through every step.
 
@@ -19,19 +19,19 @@ You need SSH to copy files to the NAS and run commands.
 
 1. Open **Control Panel** > **Terminal & SNMP**
 2. Tick **Enable SSH service**
-3. Leave the port as **22**
+3. Note the port number (default is **22**)
 4. Click **Apply**
 
 ---
 
 ## Step 3: Copy the project files to your NAS
 
-From your Mac terminal, run this command (replace `YOUR_NAS_IP` with your NAS's IP address, e.g. `192.168.1.50`):
+From your terminal, run this command (replace the placeholders with your own values):
 
 ```bash
-rsync -av --exclude='.venv' --exclude='data' --exclude='__pycache__' \
-  /Users/stephen/Projects/Nas_search/ \
-  stephen@YOUR_NAS_IP:/volume1/docker/nas-search/
+rsync -av -e "ssh -p YOUR_SSH_PORT" --exclude='.venv' --exclude='data' --exclude='__pycache__' --exclude='.git' \
+  /path/to/Nas_search/ \
+  YOUR_NAS_USER@YOUR_NAS_IP:/volume1/docker/nas-search/
 ```
 
 It will ask for your NAS password. Type it and press Enter (you won't see the characters as you type — that's normal).
@@ -40,37 +40,37 @@ It will ask for your NAS password. Type it and press Enter (you won't see the ch
 
 ---
 
-## Step 4: Configure your book folders
+## Step 4: Configure your folders
 
 SSH into your NAS:
 
 ```bash
-ssh stephen@YOUR_NAS_IP
+ssh -p YOUR_SSH_PORT YOUR_NAS_USER@YOUR_NAS_IP
 ```
 
-Edit the docker-compose file to map your actual book folders:
+Edit the docker-compose file to map your actual folders:
 
 ```bash
 cd /volume1/docker/nas-search
 vi docker-compose.yml
 ```
 
-> **If you're not comfortable with `vi`**: you can edit `docker-compose.yml` on your Mac before the rsync step instead.
+> **If you're not comfortable with `vi`**: you can edit `docker-compose.yml` on your local machine before copying it over.
 
-Find the section that says `# ── NAS book volumes (read-only) ──` and add your folders. For example, if you have books in `/volume1/Books` and `/volume1/RPGs`:
+Find the volumes section and add your folders. For example:
 
 ```yaml
     volumes:
       - nas_search_data:/app/data
       - ./config.yml:/app/config.yml
       - /volume1/Books:/mnt/nas/Books:ro
-      - /volume1/RPGs:/mnt/nas/RPGs:ro
+      - /volume1/Movies:/mnt/nas/Movies:ro
 ```
 
 The format is `NAS_PATH:CONTAINER_PATH:ro`
 - Left side: the real path on your NAS
 - Right side: where it appears inside the container (always use `/mnt/nas/...`)
-- `ro` means read-only (the app never writes to your book folders)
+- `ro` means read-only (the app never writes to your folders)
 
 > **Finding your folder paths:** In File Station, right-click a folder and choose **Properties**. The "Location" field shows the path (e.g. `/volume1/Books`).
 
@@ -78,16 +78,25 @@ The format is `NAS_PATH:CONTAINER_PATH:ro`
 
 ## Step 5: Configure the indexed folders
 
-Edit `config.yml` to tell the search app which folders to scan. The paths here must match the **right side** (container paths) from docker-compose.yml:
+Copy `config.example.yml` to `config.yml` and edit it:
+
+```bash
+cp config.example.yml config.yml
+vi config.yml
+```
+
+The paths here must match the **right side** (container paths) from docker-compose.yml:
 
 ```yaml
 indexed_folders:
   Books: /mnt/nas/Books
-  RPGs: /mnt/nas/RPGs
+  Movies: /mnt/nas/Movies
 
 extensions:
   - epub
   - pdf
+  - mp4
+  - mkv
 ```
 
 The label (e.g. `Books`) is just a display name — call it whatever you like.
@@ -96,7 +105,26 @@ You can also change these later from the Settings page in the web UI.
 
 ---
 
-## Step 6: Build and start the container
+## Step 6: Configure path mappings
+
+Edit `frontend/app.js` and update the `PATH_MAPPINGS` array near the top. This maps container paths back to NAS shared folder paths so that File Station and viewer links work:
+
+```javascript
+const PATH_MAPPINGS = [
+    { container: '/mnt/nas/Books', nas: '/Books' },
+    { container: '/mnt/nas/Movies', nas: '/Movies' },
+];
+```
+
+If your DSM web port is not 5000 (the default), also update `NAS_PORT`:
+
+```javascript
+const NAS_PORT = 5000;
+```
+
+---
+
+## Step 7: Build and start the container
 
 Still in your SSH session:
 
@@ -114,7 +142,7 @@ It takes 1-2 minutes the first time. Subsequent starts are fast.
 
 ---
 
-## Step 7: Open the web UI and trigger the first index
+## Step 8: Open the web UI and trigger the first index
 
 Open your browser and go to:
 
@@ -122,7 +150,7 @@ Open your browser and go to:
 http://YOUR_NAS_IP:8080
 ```
 
-You should see the NAS Book Search interface. The first time, there are no files indexed yet.
+You should see the Search Wizard interface. The first time, there are no files indexed yet.
 
 1. Click the **Settings** button (bottom right)
 2. Verify your folders and extensions are correct
@@ -140,7 +168,8 @@ Once complete, you can start searching.
 - **Searching**: Just type in the search box. Results appear as you type.
 - **Filters**: Use the folder and extension dropdowns to narrow results.
 - **Fuzzy search**: Tick the "Fuzzy" checkbox if you're unsure of exact spelling.
-- **Open files**: Click "Open" to jump to that folder in File Station.
+- **Open files**: Click "Open" to view a file directly (PDF/epub in PDFViewer, videos in VideoPlayer).
+- **Open folders**: Click "Folder" to navigate to the file's location in File Station.
 - **Pin folders**: Click "Pin" on a result to save that folder as a shortcut.
 - **Nightly updates**: The index automatically refreshes at 02:00 each night.
 
@@ -151,7 +180,6 @@ Once complete, you can start searching.
 ### View logs
 
 ```bash
-ssh stephen@YOUR_NAS_IP
 sudo docker logs nas-search
 ```
 
@@ -177,23 +205,14 @@ sudo docker-compose down
 
 ### Update the app after code changes
 
-Copy the updated files from your Mac:
+Copy the updated files from your local machine, then rebuild on the NAS:
 
 ```bash
-rsync -av --exclude='.venv' --exclude='data' --exclude='__pycache__' \
-  /Users/stephen/Projects/Nas_search/ \
-  stephen@YOUR_NAS_IP:/volume1/docker/nas-search/
-```
-
-Then rebuild on the NAS:
-
-```bash
-ssh stephen@YOUR_NAS_IP
 cd /volume1/docker/nas-search
 sudo docker-compose up -d --build
 ```
 
-### Add a new book folder
+### Add a new folder
 
 1. Edit `docker-compose.yml` to add the volume mount
 2. Edit `config.yml` to add the folder (or use the Settings page after restart)
@@ -225,8 +244,9 @@ Then restart: `sudo docker-compose restart`
 - Check extensions — are your file types listed?
 - Check logs: `sudo docker logs nas-search | grep -i index`
 
-**File Station "Open" link doesn't work**
-- The link uses port 5000 (default DSM port). If you've changed your DSM port, the link URL will need adjusting in `app.js` (the `NAS_PORT` variable near the top).
+**File Station / Open links don't work**
+- Check the `PATH_MAPPINGS` in `app.js` correctly map container paths to NAS paths
+- The link uses port 5000 (default DSM port). If you've changed your DSM port, update `NAS_PORT` in `app.js`.
 
 **Indexing seems stuck**
 - Check logs: `sudo docker logs -f nas-search`

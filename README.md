@@ -1,13 +1,13 @@
-# NAS Book Search
+# Search Wizard
 
-A fast, lightweight search tool for finding books across a Synology NAS. Built to replace Synology's built-in Universal Search, which becomes unusable with tens of thousands of files — returning overwhelming result lists with no meaningful way to filter by folder or file type.
+A fast, lightweight search tool for finding files across a Synology NAS. Built to replace Synology's built-in Universal Search, which becomes unusable with tens of thousands of files — returning overwhelming result lists with no meaningful way to filter by folder or file type.
 
-NAS Book Search solves this by providing:
+Search Wizard solves this by providing:
 
 - **Instant search** (<100ms) across hundreds of thousands of files using SQLite FTS5
 - **Fuzzy matching** for when you can't remember the exact title or spelling
-- **Folder filtering** to narrow results to specific collections (e.g. Fiction, RPG, Non-Fiction)
-- **Direct file opening** — launch files straight into Synology PDFViewer (supports PDF and epub)
+- **Folder filtering** to narrow results to specific collections
+- **Direct file opening** — launch files in Synology's native viewers (PDFViewer for PDF/epub, VideoPlayer for video files)
 - **Folder navigation** — jump to any result's location in Synology File Station
 - **Automatic nightly reindexing** so results stay current without manual intervention
 
@@ -45,8 +45,6 @@ The interface is a single-page dark-themed web app with type-ahead search, filte
                     ┌──────┴──────┐
                     │  NAS Volume │
                     │  /volume1/  │
-                    │  Stephen/   │
-                    │  Books/     │
                     └─────────────┘
 ```
 
@@ -105,7 +103,7 @@ Nas_search/
 │   ├── index.html          # Single-page UI
 │   ├── app.js              # All frontend logic (vanilla JS)
 │   └── style.css           # Dark theme styles
-├── config.yml              # App configuration
+├── config.example.yml      # Example configuration (copy to config.yml)
 ├── requirements.txt        # Python dependencies
 ├── Dockerfile
 ├── docker-compose.yml
@@ -114,17 +112,18 @@ Nas_search/
 
 ## Configuration
 
-All configuration lives in `config.yml`:
+Copy `config.example.yml` to `config.yml` and edit it. Example:
 
 ```yaml
 indexed_folders:
-  Fiction: /mnt/nas/Books/Fiction
-  Non_Fiction: /mnt/nas/Books/Non_Fiction
-  RPG: /mnt/nas/Books/RPG
+  Books: /mnt/nas/Books
+  Movies: /mnt/nas/Movies
 
 extensions:
   - epub
   - pdf
+  - mp4
+  - mkv
 
 max_results: 100
 fuzzy_threshold: 80
@@ -155,26 +154,26 @@ Configuration can also be edited from the Settings modal in the web UI.
 
 ### Step 1: Copy project files to the NAS
 
-From your Mac terminal:
+From your terminal:
 
 ```bash
-rsync -av -e "ssh -p 22" --exclude='.venv' --exclude='data' --exclude='__pycache__' --exclude='.git' /Users/stephen/Projects/Nas_search/ "YOUR_NAS_USER@YOUR_NAS_IP:/volume1/docker/nas-search/"
+rsync -av -e "ssh -p YOUR_SSH_PORT" --exclude='.venv' --exclude='data' --exclude='__pycache__' --exclude='.git' /path/to/Nas_search/ "YOUR_NAS_USER@YOUR_NAS_IP:/volume1/docker/nas-search/"
 ```
 
-Replace `YOUR_NAS_USER` and `YOUR_NAS_IP`. If your SSH port is not 22, change `-p 22` accordingly.
+Replace the placeholders with your own values. If your SSH port is the default 22, you can omit `-e "ssh -p ..."`.
 
-If rsync fails (some Synology setups don't support it), use this alternative — run a temporary HTTP server on your Mac:
+If rsync fails (some Synology setups don't support it), use this alternative — run a temporary HTTP server on your local machine:
 
 ```bash
-cd /Users/stephen/Projects/Nas_search && python3 -m http.server 9999
+cd /path/to/Nas_search && python3 -m http.server 9999
 ```
 
 Then SSH into the NAS and download:
 
 ```bash
-ssh -p 22 "YOUR_NAS_USER@YOUR_NAS_IP"
+ssh -p YOUR_SSH_PORT "YOUR_NAS_USER@YOUR_NAS_IP"
 sudo mkdir -p /volume1/docker/nas-search && cd /volume1/docker/nas-search
-wget -r -np -nH --cut-dirs=0 -R "index.html*" http://YOUR_MAC_IP:9999/
+wget -r -np -nH --cut-dirs=0 -R "index.html*" http://YOUR_LOCAL_IP:9999/
 ```
 
 ### Step 2: Configure volume mounts
@@ -189,8 +188,9 @@ volumes:
   # Config file (persists across rebuilds)
   - ./config.yml:/app/config.yml
 
-  # NAS book folders (read-only)
-  - /volume1/YOUR_SHARED_FOLDER/Books:/mnt/nas/Books:ro
+  # NAS folders (read-only) — adjust to match your NAS paths
+  - /volume1/Books:/mnt/nas/Books:ro
+  - /volume1/Movies:/mnt/nas/Movies:ro
 ```
 
 The format is `NAS_PATH:CONTAINER_PATH:ro`:
@@ -200,13 +200,12 @@ The format is `NAS_PATH:CONTAINER_PATH:ro`:
 
 ### Step 3: Configure indexed folders
 
-Edit `config.yml` so the `indexed_folders` paths match the **container paths** (right side) from docker-compose.yml:
+Copy `config.example.yml` to `config.yml` and edit it. The `indexed_folders` paths must match the **container paths** (right side) from docker-compose.yml:
 
 ```yaml
 indexed_folders:
-  Fiction: /mnt/nas/Books/Fiction
-  Non_Fiction: /mnt/nas/Books/Non_Fiction
-  RPG: /mnt/nas/Books/RPG
+  Books: /mnt/nas/Books
+  Movies: /mnt/nas/Movies
 ```
 
 ### Step 4: Configure path mappings in the frontend
@@ -215,7 +214,8 @@ Edit `frontend/app.js` and update the `PATH_MAPPINGS` array near the top of the 
 
 ```javascript
 const PATH_MAPPINGS = [
-    { container: '/mnt/nas/Books', nas: '/YOUR_SHARED_FOLDER/Books' },
+    { container: '/mnt/nas/Books', nas: '/Books' },
+    { container: '/mnt/nas/Movies', nas: '/Movies' },
 ];
 ```
 

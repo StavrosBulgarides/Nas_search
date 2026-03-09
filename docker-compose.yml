@@ -14,8 +14,9 @@ services:
       # Persistent config so settings survive container rebuilds
       - ./config.yml:/app/config.yml
 
-      # NAS volumes (read-only)
-      - /volume1/Stephen:/mnt/nas/Stephen:ro
+      # NAS volumes (read-only) — adjust paths to match your NAS shared folders
+      # - /volume1/YourFolder:/mnt/nas/YourFolder:ro
+      - /volume1/Books:/mnt/nas/Books:ro
       - /volume1/Movies:/mnt/nas/Movies:ro
 
 volumes:

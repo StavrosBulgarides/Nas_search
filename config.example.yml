@@ -1,8 +1,5 @@
 indexed_folders:
-  Fiction: /mnt/nas/Stephen/Books/Fiction
-  Non_Fiction: /mnt/nas/Stephen/Books/Non_Fiction
-  RPG: /mnt/nas/Stephen/Books/RPG
-  Magazines: /mnt/nas/Stephen/Magazines
+  Books: /mnt/nas/Books
   Movies: /mnt/nas/Movies
 
 extensions:
@@ -10,8 +7,6 @@ extensions:
   - pdf
   - mp4
   - mkv
-  - avi
-  - mov
 
 max_results: 100
 fuzzy_threshold: 80

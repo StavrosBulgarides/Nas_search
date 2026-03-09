@@ -7,10 +7,10 @@ let pinnedFolders = JSON.parse(localStorage.getItem('pinnedFolders') || '[]');
 // NAS base URL for File Station links — auto-detected from current host
 const NAS_HOST = window.location.hostname;
 const NAS_PORT = 5000;
-// Maps container mount paths back to NAS shared folder paths
-// e.g. /mnt/nas/Books -> /Stephen/Books
+// Maps container mount paths back to NAS shared folder paths for File Station / viewer links
+// Adjust these to match your docker-compose.yml volume mounts and NAS shared folder names
 const PATH_MAPPINGS = [
-    { container: '/mnt/nas/Stephen', nas: '/Stephen' },
+    { container: '/mnt/nas/Books', nas: '/Books' },
     { container: '/mnt/nas/Movies', nas: '/Movies' },
 ];
 
