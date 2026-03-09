@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Wizard - Player</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #e0e0e0;
+        }
+        #title {
+            padding: 12px;
+            font-size: 0.9rem;
+            color: #888;
+            max-width: 90vw;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        video {
+            max-width: 95vw;
+            max-height: 85vh;
+            background: #000;
+        }
+        #error {
+            color: #e94560;
+            padding: 20px;
+            display: none;
+        }
+        a { color: #e94560; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div id="title"></div>
+    <video id="player" controls autoplay></video>
+    <div id="error">
+        <p>Failed to load video.</p>
+        <p><a href="/">Back to search</a></p>
+    </div>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const filePath = params.get('path');
+        const fileName = filePath ? filePath.split('/').pop() : 'Unknown';
+
+        document.getElementById('title').textContent = fileName;
+        document.title = fileName + ' - Search Wizard';
+
+        if (filePath) {
+            const video = document.getElementById('player');
+            video.src = '/api/stream?path=' + encodeURIComponent(filePath);
+            video.addEventListener('error', () => {
+                video.style.display = 'none';
+                document.getElementById('error').style.display = '';
+            });
+        } else {
+            document.getElementById('player').style.display = 'none';
+            document.getElementById('error').style.display = '';
+        }
+    </script>
+</body>
+</html>

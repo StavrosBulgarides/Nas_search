@@ -22,6 +22,7 @@ from backend.indexer import run_index, is_indexing
 from backend.search import search_files
 from backend.scheduler import start_scheduler, stop_scheduler
 from backend.models import SearchResponse, IndexStatus, TrackClick
+from backend.stream import router as stream_router
 
 
 def setup_logging():
@@ -81,6 +82,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Search Wizard", lifespan=lifespan)
+app.include_router(stream_router)
 
 
 # ── Request logging middleware ──
@@ -123,6 +125,11 @@ app.mount("/static", StaticFiles(directory=str(frontend_dir)), name="static")
 @app.get("/")
 async def index():
     return FileResponse(str(frontend_dir / "index.html"))
+
+
+@app.get("/player")
+async def player():
+    return FileResponse(str(frontend_dir / "player.html"))
 
 
 @app.get("/api/search")

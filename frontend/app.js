@@ -10,7 +10,7 @@ const NAS_PORT = 5000;
 // Maps container mount paths back to NAS shared folder paths for File Station / viewer links
 // Adjust these to match your docker-compose.yml volume mounts and NAS shared folder names
 const PATH_MAPPINGS = [
-    { container: '/mnt/nas/Books', nas: '/Books' },
+    { container: '/mnt/nas/Stephen', nas: '/Stephen' },
     { container: '/mnt/nas/Movies', nas: '/Movies' },
 ];
 
@@ -489,13 +489,20 @@ function buildFileStationUrl(folderPath) {
     return `http://${NAS_HOST}:${NAS_PORT}/?launchApp=SYNO.SDS.App.FileStation3.Instance&launchParam=${encodedPath}`;
 }
 
-const VIDEO_EXTENSIONS = ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm'];
+// Formats browsers can play natively — use Synology VideoPlayer
+const NATIVE_VIDEO = ['mp4', 'webm', 'mov'];
+// Formats that need transcoding — use built-in player with ffmpeg
+const TRANSCODE_VIDEO = ['mkv', 'avi', 'wmv', 'flv'];
 
 function buildOpenFileUrl(fullPath, extension) {
-    const nasPath = containerToNasPath(fullPath);
     const ext = (extension || '').toLowerCase();
+    const nasPath = containerToNasPath(fullPath);
 
-    if (VIDEO_EXTENSIONS.includes(ext)) {
+    if (TRANSCODE_VIDEO.includes(ext)) {
+        return `/player?path=${encodeURIComponent(fullPath)}`;
+    }
+
+    if (NATIVE_VIDEO.includes(ext)) {
         const encodedPath = encodeURIComponent(nasPath);
         const launchParam = encodeURIComponent('ieMode=9&is_drive=false&path=' + encodedPath + '&file_id=' + encodedPath);
         return `http://${NAS_HOST}:${NAS_PORT}/?launchApp=SYNO.SDS.VideoPlayer2.Application&launchParam=${launchParam}&ieMode=9`;

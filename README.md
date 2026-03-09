@@ -7,58 +7,62 @@ Search Wizard solves this by providing:
 - **Instant search** (<100ms) across hundreds of thousands of files using SQLite FTS5
 - **Fuzzy matching** for when you can't remember the exact title or spelling
 - **Folder filtering** to narrow results to specific collections
-- **Direct file opening** — launch files in Synology's native viewers (PDFViewer for PDF/epub, VideoPlayer for video files)
+- **Direct file opening** — launch files in the appropriate viewer based on type:
+  - PDF and epub via Synology PDFViewer
+  - MP4, WebM, MOV via Synology VideoPlayer
+  - MKV, AVI, WMV, FLV via built-in video player with FFmpeg transcoding
 - **Folder navigation** — jump to any result's location in Synology File Station
 - **Automated reindexing** so results stay current without manual intervention
-
-## Screenshot
-
-The interface is a single-page dark-themed web app with type-ahead search, filter dropdowns, pinned folder shortcuts, and recent file history.
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────┐
-│                  Docker Container                │
-│                                                  │
-│  ┌──────────────┐        ┌────────────────────┐  │
-│  │   Frontend    │        │     Backend        │  │
-│  │              │        │                    │  │
-│  │  index.html  │  HTTP  │  FastAPI (Python)  │  │
-│  │  app.js      │◄──────►│  uvicorn :8080     │  │
-│  │  style.css   │        │                    │  │
-│  └──────────────┘        │  ┌──────────────┐  │  │
-│                          │  │  SQLite DB   │  │  │
-│                          │  │  + FTS5      │  │  │
-│                          │  └──────────────┘  │  │
-│                          │                    │  │
-│                          │  ┌──────────────┐  │  │
-│                          │  │  Scheduler   │  │  │
-│                          │  │  (APScheduler│  │  │
-│                          │  │  cron 02:00) │  │  │
-│                          │  └──────────────┘  │  │
-│                          └────────────────────┘  │
-│                                   │              │
-│                          /mnt/nas/Books (ro)     │
-└──────────────────────────┼───────────────────────┘
-                           │
-                    ┌──────┴──────┐
-                    │  NAS Volume │
-                    │  /volume1/  │
-                    └─────────────┘
+┌───────────────────────────────────────────────────────┐
+│                    Docker Container                    │
+│                                                       │
+│  ┌──────────────┐        ┌─────────────────────────┐  │
+│  │   Frontend    │        │       Backend           │  │
+│  │              │        │                         │  │
+│  │  index.html  │  HTTP  │  FastAPI (Python)       │  │
+│  │  player.html │◄──────►│  uvicorn :8080          │  │
+│  │  app.js      │        │                         │  │
+│  │  style.css   │        │  ┌───────────────────┐  │  │
+│  └──────────────┘        │  │  SQLite + FTS5    │  │  │
+│                          │  └───────────────────┘  │  │
+│                          │                         │  │
+│                          │  ┌───────────────────┐  │  │
+│                          │  │  FFmpeg           │  │  │
+│                          │  │  (video streaming)│  │  │
+│                          │  └───────────────────┘  │  │
+│                          │                         │  │
+│                          │  ┌───────────────────┐  │  │
+│                          │  │  APScheduler      │  │  │
+│                          │  │  (cron 02:00)     │  │  │
+│                          │  └───────────────────┘  │  │
+│                          └─────────────────────────┘  │
+│                                    │                  │
+│                           /mnt/nas (read-only)        │
+└────────────────────────────┼──────────────────────────┘
+                             │
+                      ┌──────┴──────┐
+                      │  NAS Volume │
+                      │  /volume1/  │
+                      └─────────────┘
 ```
 
 ### Components
 
-**Frontend** — Vanilla HTML/CSS/JavaScript. No build tools, no framework. Served as static files by FastAPI. All state (pinned folders, recent files) stored in the browser's localStorage.
+**Frontend** — Vanilla HTML/CSS/JavaScript. No build tools, no framework. Served as static files by FastAPI. All state (pinned folders, recent files) stored in the browser's localStorage. Includes a dedicated video player page for streaming transcoded video.
 
-**Backend** — Python 3.11 with FastAPI. Handles search queries, file indexing, configuration, and serves the frontend. Runs on uvicorn.
+**Backend** — Python 3.11 with FastAPI. Handles search queries, file indexing, video streaming, configuration, and serves the frontend. Runs on uvicorn.
 
 **Database** — SQLite with WAL journal mode for concurrent reads. Uses FTS5 (Full Text Search 5) virtual tables with automatic sync triggers. The database file is stored in a named Docker volume so it persists across container rebuilds.
 
 **Indexer** — Walks configured folders, reads file metadata (name, path, size, modified date, extension), and upserts into the database. Supports incremental scans (using directory mtime to skip unchanged directories) and full scans. Runs in a background thread to avoid blocking the API.
 
 **Scheduler** — APScheduler with a cron trigger. Runs a full reindex at a configurable time (default 02:00).
+
+**Video Streamer** — Uses FFmpeg to stream video files to the browser. Detects the video codec with ffprobe: H.264 files are remuxed instantly (no CPU cost), while other codecs (H.265, etc.) are transcoded to H.264 on the fly. Output is streamed as fragmented MP4.
 
 ### Search Strategy
 
@@ -76,6 +80,7 @@ Results are ranked using a composite score:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/` | Serve the frontend |
+| GET | `/player` | Serve the video player page |
 | GET | `/api/search` | Search files (params: q, folder, extension, fuzzy, limit, offset) |
 | POST | `/api/index` | Trigger a manual reindex |
 | GET | `/api/status` | Get index status (file count, last index time, indexing state) |
@@ -85,6 +90,7 @@ Results are ranked using a composite score:
 | POST | `/api/track-click` | Record a folder click for usage-based ranking |
 | GET | `/api/config` | Get current configuration |
 | PUT | `/api/config` | Update configuration |
+| GET | `/api/stream` | Stream a video file via FFmpeg (params: path) |
 
 ### Project Structure
 
@@ -98,9 +104,11 @@ Nas_search/
 │   ├── main.py             # FastAPI app, routes, middleware
 │   ├── models.py           # Pydantic request/response models
 │   ├── scheduler.py        # APScheduler cron job
-│   └── search.py           # FTS5 + fuzzy search logic
+│   ├── search.py           # FTS5 + fuzzy search logic
+│   └── stream.py           # FFmpeg video transcoding and streaming
 ├── frontend/
-│   ├── index.html          # Single-page UI
+│   ├── index.html          # Single-page search UI
+│   ├── player.html         # Video player page
 │   ├── app.js              # All frontend logic (vanilla JS)
 │   ├── style.css           # Dark theme styles
 │   └── favicon.svg         # Browser tab icon
@@ -125,6 +133,8 @@ extensions:
   - pdf
   - mp4
   - mkv
+  - avi
+  - mov
 
 max_results: 100
 fuzzy_threshold: 80
@@ -169,17 +179,16 @@ If rsync fails (some Synology setups don't support it), use this alternative —
 cd /path/to/Nas_search && python3 -m http.server 9999
 ```
 
-Then SSH into the NAS and download:
+Then SSH into the NAS and download individual files with wget:
 
 ```bash
-ssh -p YOUR_SSH_PORT "YOUR_NAS_USER@YOUR_NAS_IP"
-sudo mkdir -p /volume1/docker/nas-search && cd /volume1/docker/nas-search
-wget -r -np -nH --cut-dirs=0 -R "index.html*" http://YOUR_LOCAL_IP:9999/
+cd /volume1/docker/nas-search
+sudo wget -O filename http://YOUR_LOCAL_IP:9999/filename
 ```
 
 ### Step 2: Configure volume mounts
 
-Edit `docker-compose.yml` on the NAS to map your actual book folders. The key section is the `volumes` list:
+Edit `docker-compose.yml` on the NAS to map your folders. The key section is the `volumes` list:
 
 ```yaml
 volumes:
@@ -197,7 +206,9 @@ volumes:
 The format is `NAS_PATH:CONTAINER_PATH:ro`:
 - **Left side**: The real path on your NAS. Find it by right-clicking a folder in File Station > Properties > Location.
 - **Right side**: Where the folder appears inside the container. Always use `/mnt/nas/...`.
-- **`:ro`**: Read-only. The app never writes to your book folders.
+- **`:ro`**: Read-only. The app never writes to your folders.
+
+**Important**: Each top-level NAS shared folder needs its own mount. You cannot mount a read-only volume and then mount a sub-path inside it — Docker will fail with a read-only filesystem error.
 
 ### Step 3: Configure indexed folders
 
@@ -211,7 +222,7 @@ indexed_folders:
 
 ### Step 4: Configure path mappings in the frontend
 
-Edit `frontend/app.js` and update the `PATH_MAPPINGS` array near the top of the file. This maps container paths back to NAS shared folder paths so that File Station and PDFViewer links work correctly:
+Edit `frontend/app.js` and update the `PATH_MAPPINGS` array near the top of the file. This maps container paths back to NAS shared folder paths so that File Station and viewer links work correctly:
 
 ```javascript
 const PATH_MAPPINGS = [
@@ -235,7 +246,7 @@ cd /volume1/docker/nas-search
 sudo docker-compose up -d --build
 ```
 
-First build takes 1-2 minutes (downloads the Python 3.11 base image). Subsequent builds are faster.
+First build takes 2-3 minutes (downloads Python 3.11 base image and FFmpeg). Subsequent builds are faster.
 
 ### Step 6: First index
 
@@ -255,9 +266,12 @@ A simple `docker restart` does **not** pick up file changes — you must rebuild
 
 - **Search**: Type in the search box. Results appear as you type (300ms debounce).
 - **Filter by folder**: Use the folder dropdown to restrict results to a specific collection.
-- **Filter by type**: Use the extension dropdown to show only epub, pdf, etc.
+- **Filter by type**: Use the extension dropdown to show only epub, pdf, mp4, etc.
 - **Fuzzy search**: Tick the "Fuzzy" checkbox when you're unsure of exact spelling.
-- **Open a file**: Click "Open" to launch the file in the appropriate Synology viewer (PDFViewer for PDF/epub, VideoPlayer for video files).
+- **Open a file**: Click "Open" to launch the file in the appropriate viewer:
+  - PDF and epub open in Synology PDFViewer
+  - MP4, WebM, MOV open in Synology VideoPlayer (native browser playback)
+  - MKV, AVI, WMV, FLV open in the built-in player (transcoded via FFmpeg)
 - **Open the folder**: Click "Folder" to navigate to the file's location in Synology File Station.
 - **Pin folders**: Click "Pin" on a result to save that folder as a sidebar shortcut. Click "x" next to a pinned folder to remove it.
 - **Recent files**: Files you open are saved to a recent files list in the sidebar. Click the "x" to clear.
@@ -288,8 +302,9 @@ sudo docker-compose up -d           # start again
 
 1. Add the volume mount in `docker-compose.yml`
 2. Add the folder in `config.yml` (or via the Settings UI after restart)
-3. Rebuild: `sudo docker-compose up -d --build`
-4. Click **Reindex** in the web UI
+3. Update `PATH_MAPPINGS` in `frontend/app.js`
+4. Rebuild: `sudo docker-compose up -d --build`
+5. Click **Reindex** in the web UI
 
 ### Change the reindex schedule
 
@@ -309,6 +324,8 @@ Then restart: `sudo docker-compose restart`
 | "Connection refused" on port 8080 | Check container is running: `sudo docker ps`. Check logs: `sudo docker logs nas-search`. Verify port 8080 isn't used by another app. |
 | No search results after indexing | Verify folder paths in Settings match the container mount paths. Check extensions list includes your file types. Check logs for "Folder not found" errors. |
 | File Station / Open links don't work | Verify `PATH_MAPPINGS` in `app.js` correctly maps container paths to NAS paths. Check `NAS_PORT` matches your DSM web port (default 5000). |
+| Video won't play in built-in player | Check logs: `sudo docker logs nas-search`. FFmpeg may be failing on the file. Try a different file to isolate the issue. |
+| Docker build fails with read-only error | You cannot mount a sub-path inside a read-only mount. Give each NAS shared folder its own volume mount line. |
 | Indexing seems stuck | Check logs: `sudo docker logs -f nas-search`. Large collections (500k+ files) can take 10-15 minutes on the first full scan. |
 | Container won't start after NAS reboot | The `restart: unless-stopped` policy handles this automatically. If not: `cd /volume1/docker/nas-search && sudo docker-compose up -d` |
 | Changes not showing after update | You must rebuild with `sudo docker-compose up -d --build`. A plain `docker restart` does not copy new files into the container. |
@@ -318,6 +335,7 @@ Then restart: `sudo docker-compose restart`
 - **Backend**: Python 3.11, FastAPI, uvicorn
 - **Database**: SQLite with FTS5 and WAL journal mode
 - **Fuzzy search**: rapidfuzz (Levenshtein distance)
+- **Video streaming**: FFmpeg (remux H.264, transcode other codecs)
 - **Scheduling**: APScheduler
 - **Frontend**: Vanilla HTML, CSS, JavaScript (no build tools)
 - **Deployment**: Docker on Synology NAS
