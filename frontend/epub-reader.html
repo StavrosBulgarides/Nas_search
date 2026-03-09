@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Wizard - Reader</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #toolbar {
+            background: #16213e;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #0f3460;
+            flex-shrink: 0;
+        }
+
+        #title {
+            font-size: 0.85rem;
+            color: #888;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 30%;
+        }
+
+        #controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #controls button {
+            padding: 5px 12px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        #controls button:hover { border-color: #e94560; color: #e94560; }
+
+        #font-size-display {
+            font-size: 0.8rem;
+            color: #888;
+            min-width: 35px;
+            text-align: center;
+        }
+
+        #chapter-select {
+            padding: 4px 8px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 0.8rem;
+            max-width: 250px;
+        }
+
+        #progress-display {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        a.back-link {
+            color: #e94560;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        #reader-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #viewer {
+            max-width: 700px;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* Navigation zones */
+        #prev-zone, #next-zone {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 20%;
+            cursor: pointer;
+            z-index: 5;
+        }
+
+        #prev-zone { left: 0; }
+        #next-zone { right: 0; }
+
+        #prev-zone:hover { background: rgba(233, 69, 96, 0.05); }
+        #next-zone:hover { background: rgba(233, 69, 96, 0.05); }
+
+        #loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            font-size: 1rem;
+            background: #1a1a2e;
+            z-index: 10;
+        }
+
+        #error {
+            color: #e94560;
+            padding: 40px;
+            text-align: center;
+            display: none;
+        }
+
+        #error-detail {
+            color: #888;
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <div id="title"></div>
+        <div id="controls">
+            <button id="prev-btn" title="Previous page">Prev</button>
+            <select id="chapter-select"></select>
+            <button id="next-btn" title="Next page">Next</button>
+            <span style="color:#0f3460">|</span>
+            <button id="font-down" title="Decrease font size">A-</button>
+            <span id="font-size-display">100%</span>
+            <button id="font-up" title="Increase font size">A+</button>
+            <span style="color:#0f3460">|</span>
+            <span id="progress-display">--</span>
+            <a href="/" class="back-link">Back</a>
+        </div>
+    </div>
+
+    <div id="reader-container">
+        <div id="loading">Loading book...</div>
+        <div id="viewer"></div>
+        <div id="prev-zone"></div>
+        <div id="next-zone"></div>
+    </div>
+
+    <div id="error">
+        <p>Failed to load book.</p>
+        <p id="error-detail"></p>
+        <p style="margin-top:12px"><a href="/" style="color:#e94560;text-decoration:none;">Back to search</a></p>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const filePath = params.get('path');
+        const fileName = filePath ? filePath.split('/').pop() : 'Unknown';
+
+        document.getElementById('title').textContent = fileName;
+        document.title = fileName + ' - Search Wizard';
+
+        let book = null;
+        let rendition = null;
+        let fontSize = 100;
+
+        const storageKey = 'epub-pos:' + filePath;
+
+        function showError(detail) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('reader-container').style.display = 'none';
+            document.getElementById('error').style.display = '';
+            if (detail) document.getElementById('error-detail').textContent = detail;
+        }
+
+        function updateProgress() {
+            if (!rendition || !rendition.location) return;
+            const loc = rendition.location;
+            if (loc.start && loc.start.percentage !== undefined) {
+                const pct = Math.round(loc.start.percentage * 100);
+                document.getElementById('progress-display').textContent = pct + '%';
+            }
+        }
+
+        function savePosition() {
+            if (!rendition || !rendition.location) return;
+            const loc = rendition.location;
+            if (loc.start && loc.start.cfi) {
+                localStorage.setItem(storageKey, loc.start.cfi);
+            }
+        }
+
+        function loadPosition() {
+            return localStorage.getItem(storageKey);
+        }
+
+        async function loadBook() {
+            if (!filePath) {
+                showError('No file path specified.');
+                return;
+            }
+
+            try {
+                const resp = await fetch(`/api/file?path=${encodeURIComponent(filePath)}`);
+                if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+
+                const data = await resp.arrayBuffer();
+
+                book = ePub(data);
+
+                const container = document.getElementById('reader-container');
+                const viewerEl = document.getElementById('viewer');
+                const maxWidth = 700;
+                const w = Math.min(container.clientWidth, maxWidth);
+                const h = container.clientHeight;
+
+                rendition = book.renderTo(viewerEl, {
+                    width: w,
+                    height: h,
+                    spread: 'none',
+                    flow: 'paginated',
+                });
+
+                // Apply dark theme to book content
+                rendition.themes.default({
+                    'body': {
+                        'color': '#e0e0e0 !important',
+                        'background': '#1a1a2e !important',
+                    },
+                    'p, span, div, h1, h2, h3, h4, h5, h6, li, a, em, strong, blockquote': {
+                        'color': '#e0e0e0 !important',
+                    },
+                    'a': {
+                        'color': '#e94560 !important',
+                    }
+                });
+
+                rendition.themes.fontSize(fontSize + '%');
+
+                // Load saved position or start from beginning
+                const savedCfi = loadPosition();
+                if (savedCfi) {
+                    await rendition.display(savedCfi);
+                } else {
+                    await rendition.display();
+                }
+
+                document.getElementById('loading').style.display = 'none';
+
+                // Populate chapter list
+                const nav = await book.loaded.navigation;
+                const select = document.getElementById('chapter-select');
+                if (nav.toc && nav.toc.length > 0) {
+                    nav.toc.forEach((ch, i) => {
+                        const opt = document.createElement('option');
+                        opt.value = ch.href;
+                        opt.textContent = ch.label.trim();
+                        select.appendChild(opt);
+                    });
+                } else {
+                    select.style.display = 'none';
+                }
+
+                // Track location changes
+                rendition.on('relocated', (location) => {
+                    updateProgress();
+                    savePosition();
+
+                    // Update chapter dropdown
+                    if (location.start) {
+                        const currentHref = location.start.href;
+                        for (let i = 0; i < select.options.length; i++) {
+                            if (currentHref.includes(select.options[i].value) ||
+                                select.options[i].value.includes(currentHref)) {
+                                select.selectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                });
+
+                // Keyboard in iframe
+                rendition.on('keydown', handleKeydown);
+
+            } catch (err) {
+                console.error('Failed to load book:', err);
+                showError(err.message);
+            }
+        }
+
+        // Navigation
+        function goNext() { if (rendition) rendition.next(); }
+        function goPrev() { if (rendition) rendition.prev(); }
+
+        document.getElementById('prev-btn').addEventListener('click', goPrev);
+        document.getElementById('next-btn').addEventListener('click', goNext);
+        document.getElementById('prev-zone').addEventListener('click', goPrev);
+        document.getElementById('next-zone').addEventListener('click', goNext);
+
+        // Chapter select
+        document.getElementById('chapter-select').addEventListener('change', (e) => {
+            if (rendition && e.target.value) {
+                rendition.display(e.target.value);
+            }
+        });
+
+        // Font size
+        document.getElementById('font-up').addEventListener('click', () => {
+            fontSize = Math.min(200, fontSize + 10);
+            document.getElementById('font-size-display').textContent = fontSize + '%';
+            if (rendition) rendition.themes.fontSize(fontSize + '%');
+        });
+
+        document.getElementById('font-down').addEventListener('click', () => {
+            fontSize = Math.max(60, fontSize - 10);
+            document.getElementById('font-size-display').textContent = fontSize + '%';
+            if (rendition) rendition.themes.fontSize(fontSize + '%');
+        });
+
+        // Keyboard navigation
+        function handleKeydown(e) {
+            if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goNext(); }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); }
+        }
+
+        document.addEventListener('keydown', handleKeydown);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (rendition) {
+                const container = document.getElementById('reader-container');
+                const w = Math.min(container.clientWidth, 700);
+                rendition.resize(w, container.clientHeight);
+            }
+        });
+
+        loadBook();
+    </script>
+</body>
+</html>

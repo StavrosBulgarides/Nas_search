@@ -495,10 +495,16 @@ const NATIVE_VIDEO = ['mp4', 'webm', 'mov'];
 const TRANSCODE_VIDEO = ['mkv', 'avi', 'wmv', 'flv'];
 // Comic book archives — use built-in reader
 const COMIC_EXTENSIONS = ['cbz', 'cbr', 'cb7'];
+// Epub — use built-in epub reader
+const EPUB_EXTENSIONS = ['epub'];
 
 function buildOpenFileUrl(fullPath, extension) {
     const ext = (extension || '').toLowerCase();
     const nasPath = containerToNasPath(fullPath);
+
+    if (EPUB_EXTENSIONS.includes(ext)) {
+        return `/epub-reader?path=${encodeURIComponent(fullPath)}`;
+    }
 
     if (COMIC_EXTENSIONS.includes(ext)) {
         return `/reader?path=${encodeURIComponent(fullPath)}`;
@@ -514,6 +520,7 @@ function buildOpenFileUrl(fullPath, extension) {
         return `http://${NAS_HOST}:${NAS_PORT}/?launchApp=SYNO.SDS.VideoPlayer2.Application&launchParam=${launchParam}&ieMode=9`;
     }
 
+    // PDF and other files — Synology PDFViewer
     const encodedNasPath = encodeURIComponent(nasPath);
     const launchParam = encodeURIComponent('path=' + encodedNasPath);
     return `http://${NAS_HOST}:${NAS_PORT}/?launchApp=SYNO.SDS.PDFViewer.Application&launchParam=${launchParam}`;

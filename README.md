@@ -8,7 +8,8 @@ Search Wizard solves this by providing:
 - **Fuzzy matching** for when you can't remember the exact title or spelling
 - **Folder filtering** to narrow results to specific collections
 - **Direct file opening** — launch files in the appropriate viewer based on type:
-  - PDF and epub via Synology PDFViewer
+  - Epub via built-in reader (epub.js) — far faster than Synology's native PDFViewer
+  - PDF via Synology PDFViewer
   - MP4, WebM, MOV via Synology VideoPlayer
   - MKV, AVI, WMV, FLV via built-in video player with FFmpeg transcoding
   - CBZ, CBR, CB7 via built-in comic reader with page navigation
@@ -27,6 +28,7 @@ Search Wizard solves this by providing:
 │  │  index.html  │  HTTP  │  FastAPI (Python)       │  │
 │  │  player.html │◄──────►│  uvicorn :8080          │  │
 │  │  reader.html │        │                         │  │
+│  │  epub-reader │        │                         │  │
 │  │  app.js      │        │                         │  │
 │  │  style.css   │        │  ┌───────────────────┐  │  │
 │  └──────────────┘        │  │  SQLite + FTS5    │  │  │
@@ -66,6 +68,8 @@ Search Wizard solves this by providing:
 
 **Video Streamer** — Uses FFmpeg to stream video files to the browser. Detects the video codec with ffprobe: H.264 files are remuxed instantly (no CPU cost), while other codecs (H.265, etc.) are transcoded to H.264 on the fly. Output is streamed as fragmented MP4.
 
+**Epub Reader** — Client-side epub rendering using epub.js. Replaces Synology's native PDFViewer for epub files, which is painfully slow. Features chapter navigation, adjustable font size, dark theme, reading position saved in localStorage, and a book-width page layout.
+
 **Comic Reader** — Server-side extraction of CBZ (ZIP), CBR (RAR), and CB7 (7-Zip) comic archives using `unrar` and `p7zip`. Images are served as individual pages via API endpoints. The frontend provides a page-by-page reader with keyboard/click navigation, fit-to-width/height toggle, and auto-hiding toolbar. Extracted archives are cached (up to 5) for fast page turns.
 
 ### Search Strategy
@@ -95,6 +99,7 @@ Results are ranked using a composite score:
 | GET | `/api/config` | Get current configuration |
 | PUT | `/api/config` | Update configuration |
 | GET | `/api/stream` | Stream a video file via FFmpeg (params: path) |
+| GET | `/epub-reader` | Serve the epub reader page |
 | GET | `/api/file` | Serve a raw file from NAS (params: path) |
 | GET | `/api/comic/info` | Get comic page count (params: path) |
 | GET | `/api/comic/page/{n}` | Get a single comic page image (params: path) |
@@ -118,6 +123,7 @@ Nas_search/
 │   ├── index.html          # Single-page search UI
 │   ├── player.html         # Video player page
 │   ├── reader.html         # Comic book reader
+│   ├── epub-reader.html    # Epub book reader
 │   ├── app.js              # All frontend logic (vanilla JS)
 │   ├── style.css           # Dark theme styles
 │   └── favicon.svg         # Browser tab icon
@@ -280,7 +286,8 @@ A simple `docker restart` does **not** pick up file changes — you must rebuild
 - **Filter by type**: Use the extension dropdown to show only epub, pdf, mp4, etc.
 - **Fuzzy search**: Tick the "Fuzzy" checkbox when you're unsure of exact spelling.
 - **Open a file**: Click "Open" to launch the file in the appropriate viewer:
-  - PDF and epub open in Synology PDFViewer
+  - Epub opens in the built-in reader (chapter nav, font size, reading position saved)
+  - PDF opens in Synology PDFViewer
   - MP4, WebM, MOV open in Synology VideoPlayer (native browser playback)
   - MKV, AVI, WMV, FLV open in the built-in player (transcoded via FFmpeg)
   - CBZ, CBR, CB7 open in the built-in comic reader (server-side extraction)
@@ -349,6 +356,7 @@ Then restart: `sudo docker-compose restart`
 - **Database**: SQLite with FTS5 and WAL journal mode
 - **Fuzzy search**: rapidfuzz (Levenshtein distance)
 - **Video streaming**: FFmpeg (remux H.264, transcode other codecs)
+- **Epub reader**: epub.js + JSZip (client-side rendering)
 - **Comic reader**: Server-side extraction with unrar-free and p7zip
 - **Scheduling**: APScheduler
 - **Frontend**: Vanilla HTML, CSS, JavaScript (no build tools)

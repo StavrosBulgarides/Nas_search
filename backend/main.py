@@ -139,6 +139,11 @@ async def reader():
     return FileResponse(str(frontend_dir / "reader.html"))
 
 
+@app.get("/epub-reader")
+async def epub_reader():
+    return FileResponse(str(frontend_dir / "epub-reader.html"))
+
+
 @app.get("/api/file")
 async def api_file(path: str = Query(..., description="Container file path")):
     import os
