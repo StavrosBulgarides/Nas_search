@@ -9,7 +9,7 @@ Search Wizard solves this by providing:
 - **Folder filtering** to narrow results to specific collections
 - **Direct file opening** — launch files in Synology's native viewers (PDFViewer for PDF/epub, VideoPlayer for video files)
 - **Folder navigation** — jump to any result's location in Synology File Station
-- **Automatic nightly reindexing** so results stay current without manual intervention
+- **Automated reindexing** so results stay current without manual intervention
 
 ## Screenshot
 
@@ -102,7 +102,8 @@ Nas_search/
 ├── frontend/
 │   ├── index.html          # Single-page UI
 │   ├── app.js              # All frontend logic (vanilla JS)
-│   └── style.css           # Dark theme styles
+│   ├── style.css           # Dark theme styles
+│   └── favicon.svg         # Browser tab icon
 ├── config.example.yml      # Example configuration (copy to config.yml)
 ├── requirements.txt        # Python dependencies
 ├── Dockerfile
@@ -256,9 +257,9 @@ A simple `docker restart` does **not** pick up file changes — you must rebuild
 - **Filter by folder**: Use the folder dropdown to restrict results to a specific collection.
 - **Filter by type**: Use the extension dropdown to show only epub, pdf, etc.
 - **Fuzzy search**: Tick the "Fuzzy" checkbox when you're unsure of exact spelling.
-- **Open a file**: Click "Open" to launch the file in Synology PDFViewer (works for PDF and epub).
-- **Open the folder**: Click "File" to navigate to the file's folder in Synology File Station.
-- **Pin folders**: Click the pin icon on a result to save that folder as a sidebar shortcut.
+- **Open a file**: Click "Open" to launch the file in the appropriate Synology viewer (PDFViewer for PDF/epub, VideoPlayer for video files).
+- **Open the folder**: Click "Folder" to navigate to the file's location in Synology File Station.
+- **Pin folders**: Click "Pin" on a result to save that folder as a sidebar shortcut. Click "x" next to a pinned folder to remove it.
 - **Recent files**: Files you open are saved to a recent files list in the sidebar. Click the "x" to clear.
 - **Reindex**: Click "Reindex" (bottom-right) to trigger a manual full scan.
 - **Settings**: Click "Settings" to modify indexed folders, file extensions, and the nightly reindex schedule.
@@ -283,7 +284,7 @@ sudo docker-compose down            # stop and remove container
 sudo docker-compose up -d           # start again
 ```
 
-### Add a new book folder
+### Add a new folder
 
 1. Add the volume mount in `docker-compose.yml`
 2. Add the folder in `config.yml` (or via the Settings UI after restart)
