@@ -11,6 +11,7 @@ Search Wizard solves this by providing:
   - PDF and epub via Synology PDFViewer
   - MP4, WebM, MOV via Synology VideoPlayer
   - MKV, AVI, WMV, FLV via built-in video player with FFmpeg transcoding
+  - CBZ, CBR, CB7 via built-in comic reader with page navigation
 - **Folder navigation** — jump to any result's location in Synology File Station
 - **Automated reindexing** so results stay current without manual intervention
 
@@ -25,6 +26,7 @@ Search Wizard solves this by providing:
 │  │              │        │                         │  │
 │  │  index.html  │  HTTP  │  FastAPI (Python)       │  │
 │  │  player.html │◄──────►│  uvicorn :8080          │  │
+│  │  reader.html │        │                         │  │
 │  │  app.js      │        │                         │  │
 │  │  style.css   │        │  ┌───────────────────┐  │  │
 │  └──────────────┘        │  │  SQLite + FTS5    │  │  │
@@ -63,6 +65,8 @@ Search Wizard solves this by providing:
 **Scheduler** — APScheduler with a cron trigger. Runs a full reindex at a configurable time (default 02:00).
 
 **Video Streamer** — Uses FFmpeg to stream video files to the browser. Detects the video codec with ffprobe: H.264 files are remuxed instantly (no CPU cost), while other codecs (H.265, etc.) are transcoded to H.264 on the fly. Output is streamed as fragmented MP4.
+
+**Comic Reader** — Server-side extraction of CBZ (ZIP), CBR (RAR), and CB7 (7-Zip) comic archives using `unrar` and `p7zip`. Images are served as individual pages via API endpoints. The frontend provides a page-by-page reader with keyboard/click navigation, fit-to-width/height toggle, and auto-hiding toolbar. Extracted archives are cached (up to 5) for fast page turns.
 
 ### Search Strategy
 

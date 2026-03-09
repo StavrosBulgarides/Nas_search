@@ -7,6 +7,8 @@ extensions:
   - pdf
   - mp4
   - mkv
+  - cbz
+  - cbr
 
 max_results: 100
 fuzzy_threshold: 80

@@ -128,9 +128,11 @@ def _scan_directory(
     dirs_scanned = 0
     files_seen = 0
 
+    skipped_extensions = {}
+
     for dirpath, dirnames, filenames in os.walk(root):
         # Skip hidden directories
-        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        dirnames[:] = [d for d in dirnames if not d.startswith(".") and not d.startswith("@")]
         dirs_scanned += 1
 
         # For incremental scan, skip directories that haven't changed
@@ -152,6 +154,7 @@ def _scan_directory(
                         continue
                     ext = Path(filename).suffix.lower().lstrip(".")
                     if extensions and ext not in extensions:
+                        skipped_extensions[ext] = skipped_extensions.get(ext, 0) + 1
                         continue
                     seen_paths.add(os.path.join(dirpath, filename))
                 continue
@@ -162,6 +165,7 @@ def _scan_directory(
 
             ext = Path(filename).suffix.lower().lstrip(".")
             if extensions and ext not in extensions:
+                skipped_extensions[ext] = skipped_extensions.get(ext, 0) + 1
                 continue
 
             full_path = os.path.join(dirpath, filename)
@@ -193,5 +197,10 @@ def _scan_directory(
                 added += 1
             else:
                 updated += 1
+
+    if skipped_extensions:
+        sorted_skipped = sorted(skipped_extensions.items(), key=lambda x: -x[1])
+        skipped_str = ", ".join(f".{ext}({count})" for ext, count in sorted_skipped)
+        logger.info("  Skipped extensions: %s", skipped_str)
 
     return added, updated, errors, dirs_scanned, files_seen

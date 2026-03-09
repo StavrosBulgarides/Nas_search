@@ -493,10 +493,16 @@ function buildFileStationUrl(folderPath) {
 const NATIVE_VIDEO = ['mp4', 'webm', 'mov'];
 // Formats that need transcoding — use built-in player with ffmpeg
 const TRANSCODE_VIDEO = ['mkv', 'avi', 'wmv', 'flv'];
+// Comic book archives — use built-in reader
+const COMIC_EXTENSIONS = ['cbz', 'cbr', 'cb7'];
 
 function buildOpenFileUrl(fullPath, extension) {
     const ext = (extension || '').toLowerCase();
     const nasPath = containerToNasPath(fullPath);
+
+    if (COMIC_EXTENSIONS.includes(ext)) {
+        return `/reader?path=${encodeURIComponent(fullPath)}`;
+    }
 
     if (TRANSCODE_VIDEO.includes(ext)) {
         return `/player?path=${encodeURIComponent(fullPath)}`;

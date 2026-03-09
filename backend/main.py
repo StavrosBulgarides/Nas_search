@@ -23,6 +23,7 @@ from backend.search import search_files
 from backend.scheduler import start_scheduler, stop_scheduler
 from backend.models import SearchResponse, IndexStatus, TrackClick
 from backend.stream import router as stream_router
+from backend.comic import router as comic_router
 
 
 def setup_logging():
@@ -83,6 +84,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Search Wizard", lifespan=lifespan)
 app.include_router(stream_router)
+app.include_router(comic_router)
 
 
 # ── Request logging middleware ──
@@ -130,6 +132,22 @@ async def index():
 @app.get("/player")
 async def player():
     return FileResponse(str(frontend_dir / "player.html"))
+
+
+@app.get("/reader")
+async def reader():
+    return FileResponse(str(frontend_dir / "reader.html"))
+
+
+@app.get("/api/file")
+async def api_file(path: str = Query(..., description="Container file path")):
+    import os
+    real = os.path.realpath(path)
+    if not real.startswith("/mnt/nas"):
+        return JSONResponse(status_code=403, content={"detail": "Access denied"})
+    if not os.path.isfile(real):
+        return JSONResponse(status_code=404, content={"detail": "File not found"})
+    return FileResponse(real, filename=os.path.basename(real))
 
 
 @app.get("/api/search")
