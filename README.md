@@ -33,8 +33,8 @@ Search Wizard solves this by providing:
 │                          │  └───────────────────┘  │  │
 │                          │                         │  │
 │                          │  ┌───────────────────┐  │  │
-│                          │  │  FFmpeg           │  │  │
-│                          │  │  (video streaming)│  │  │
+│                          │  │  FFmpeg + unrar   │  │  │
+│                          │  │  (video & comics) │  │  │
 │                          │  └───────────────────┘  │  │
 │                          │                         │  │
 │                          │  ┌───────────────────┐  │  │
@@ -95,6 +95,9 @@ Results are ranked using a composite score:
 | GET | `/api/config` | Get current configuration |
 | PUT | `/api/config` | Update configuration |
 | GET | `/api/stream` | Stream a video file via FFmpeg (params: path) |
+| GET | `/api/file` | Serve a raw file from NAS (params: path) |
+| GET | `/api/comic/info` | Get comic page count (params: path) |
+| GET | `/api/comic/page/{n}` | Get a single comic page image (params: path) |
 
 ### Project Structure
 
@@ -109,10 +112,12 @@ Nas_search/
 │   ├── models.py           # Pydantic request/response models
 │   ├── scheduler.py        # APScheduler cron job
 │   ├── search.py           # FTS5 + fuzzy search logic
-│   └── stream.py           # FFmpeg video transcoding and streaming
+│   ├── stream.py           # FFmpeg video transcoding and streaming
+│   └── comic.py            # Comic archive extraction and page serving
 ├── frontend/
 │   ├── index.html          # Single-page search UI
 │   ├── player.html         # Video player page
+│   ├── reader.html         # Comic book reader
 │   ├── app.js              # All frontend logic (vanilla JS)
 │   ├── style.css           # Dark theme styles
 │   └── favicon.svg         # Browser tab icon
@@ -139,6 +144,8 @@ extensions:
   - mkv
   - avi
   - mov
+  - cbz
+  - cbr
 
 max_results: 100
 fuzzy_threshold: 80
@@ -250,7 +257,7 @@ cd /volume1/docker/nas-search
 sudo docker-compose up -d --build
 ```
 
-First build takes 2-3 minutes (downloads Python 3.11 base image and FFmpeg). Subsequent builds are faster.
+First build takes 2-3 minutes (downloads Python 3.11 base image, FFmpeg, unrar, and p7zip). Subsequent builds are faster.
 
 ### Step 6: First index
 
@@ -276,6 +283,7 @@ A simple `docker restart` does **not** pick up file changes — you must rebuild
   - PDF and epub open in Synology PDFViewer
   - MP4, WebM, MOV open in Synology VideoPlayer (native browser playback)
   - MKV, AVI, WMV, FLV open in the built-in player (transcoded via FFmpeg)
+  - CBZ, CBR, CB7 open in the built-in comic reader (server-side extraction)
 - **Open the folder**: Click "Folder" to navigate to the file's location in Synology File Station.
 - **Pin folders**: Click "Pin" on a result to save that folder as a sidebar shortcut. Click "x" next to a pinned folder to remove it.
 - **Recent files**: Files you open are saved to a recent files list in the sidebar. Click the "x" to clear.
@@ -329,6 +337,7 @@ Then restart: `sudo docker-compose restart`
 | No search results after indexing | Verify folder paths in Settings match the container mount paths. Check extensions list includes your file types. Check logs for "Folder not found" errors. |
 | File Station / Open links don't work | Verify `PATH_MAPPINGS` in `app.js` correctly maps container paths to NAS paths. Check `NAS_PORT` matches your DSM web port (default 5000). |
 | Video won't play in built-in player | Check logs: `sudo docker logs nas-search`. FFmpeg may be failing on the file. Try a different file to isolate the issue. |
+| Comic reader shows error | Check logs. The archive may be corrupt, or use an unsupported compression method. CBZ (ZIP) and CBR (RAR v4/v5) are supported. |
 | Docker build fails with read-only error | You cannot mount a sub-path inside a read-only mount. Give each NAS shared folder its own volume mount line. |
 | Indexing seems stuck | Check logs: `sudo docker logs -f nas-search`. Large collections (500k+ files) can take 10-15 minutes on the first full scan. |
 | Container won't start after NAS reboot | The `restart: unless-stopped` policy handles this automatically. If not: `cd /volume1/docker/nas-search && sudo docker-compose up -d` |
@@ -340,6 +349,7 @@ Then restart: `sudo docker-compose restart`
 - **Database**: SQLite with FTS5 and WAL journal mode
 - **Fuzzy search**: rapidfuzz (Levenshtein distance)
 - **Video streaming**: FFmpeg (remux H.264, transcode other codecs)
+- **Comic reader**: Server-side extraction with unrar-free and p7zip
 - **Scheduling**: APScheduler
 - **Frontend**: Vanilla HTML, CSS, JavaScript (no build tools)
 - **Deployment**: Docker on Synology NAS
