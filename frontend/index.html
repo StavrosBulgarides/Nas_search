@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Wizard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Search Wizard</h1>
+        <div id="status-bar">
+            <span id="file-count">--</span> files indexed
+            <span id="index-status"></span>
+        </div>
+    </header>
+
+    <main>
+        <section id="search-section">
+            <div id="search-bar">
+                <div id="search-input-wrapper">
+                    <input type="text" id="search-input" placeholder="Search files..." autofocus>
+                    <button id="clear-search-btn" type="button" title="Clear search">&times;</button>
+                </div>
+                <div id="search-filters">
+                    <select id="folder-filter">
+                        <option value="">All folders</option>
+                    </select>
+                    <select id="extension-filter">
+                        <option value="">All types</option>
+                    </select>
+                    <label id="fuzzy-label">
+                        <input type="checkbox" id="fuzzy-toggle"> Fuzzy
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <div id="content-area">
+            <aside id="sidebar">
+                <div id="pinned-folders">
+                    <h3>Pinned Folders</h3>
+                    <ul id="pinned-list"></ul>
+                </div>
+                <div id="recent-files">
+                    <h3>Recent Files <span id="clear-recent-btn" title="Clear recent files">x</span></h3>
+                    <ul id="recent-list"></ul>
+                </div>
+            </aside>
+
+            <section id="results-section">
+                <div id="results-info"></div>
+                <table id="results-table">
+                    <thead>
+                        <tr>
+                            <th class="col-filename">Filename</th>
+                            <th class="col-folder">Folder</th>
+                            <th class="col-size">Size</th>
+                            <th class="col-date">Modified</th>
+                            <th class="col-actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body"></tbody>
+                </table>
+                <div id="load-more-container">
+                    <button id="load-more-btn" style="display:none">Load more</button>
+                </div>
+                <div id="no-results" style="display:none">
+                    <p>No results found.</p>
+                    <p id="fuzzy-suggestion" style="display:none">
+                        Try enabling <a href="#" id="enable-fuzzy-link">fuzzy search</a>?
+                    </p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <button id="reindex-btn" title="Trigger manual reindex">Reindex</button>
+        <button id="settings-btn" title="Open settings">Settings</button>
+    </footer>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Settings</h2>
+            <div class="setting-group">
+                <h3>Indexed Folders</h3>
+                <div id="folders-config"></div>
+                <button id="add-folder-btn">+ Add Folder</button>
+            </div>
+            <div class="setting-group">
+                <h3>Extensions</h3>
+                <input type="text" id="extensions-input" placeholder="epub, pdf, mobi">
+            </div>
+            <div class="setting-group">
+                <h3>Schedule (24h)</h3>
+                <input type="number" id="schedule-hour" min="0" max="23" style="width:60px"> :
+                <input type="number" id="schedule-minute" min="0" max="59" style="width:60px">
+            </div>
+            <div class="modal-actions">
+                <button id="save-settings-btn">Save</button>
+                <button id="cancel-settings-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+indexed_folders:
+  Fiction: /mnt/nas/Stephen/Books/Fiction
+  Non_Fiction: /mnt/nas/Stephen/Books/Non_Fiction
+  RPG: /mnt/nas/Stephen/Books/RPG
+  Magazines: /mnt/nas/Stephen/Magazines
+  Movies: /mnt/nas/Movies
+
+extensions:
+  - epub
+  - pdf
+  - mp4
+  - mkv
+  - avi
+  - mov
+
+max_results: 100
+fuzzy_threshold: 80
+schedule_hour: 2
+schedule_minute: 0
+host: 0.0.0.0
+port: 8080

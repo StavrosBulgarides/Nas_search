@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  nas-search:
+    build: .
+    container_name: nas-search
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persistent storage for the search database
+      - nas_search_data:/app/data
+
+      # Persistent config so settings survive container rebuilds
+      - ./config.yml:/app/config.yml
+
+      # NAS volumes (read-only)
+      - /volume1/Stephen:/mnt/nas/Stephen:ro
+      - /volume1/Movies:/mnt/nas/Movies:ro
+
+volumes:
+  nas_search_data:

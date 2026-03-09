@@ -1,0 +1,26 @@
+2026-03-09 16:48:01 INFO     backend.config [MainThread]: Config loaded: 1 folder(s) configured, extensions=['epub', 'pdf'], schedule=02:00
+2026-03-09 16:48:01 INFO     backend.config [MainThread]:   Folder: TestBooks -> /tmp/nas_test_books
+2026-03-09 16:48:01 INFO     backend.database [MainThread]: Initialising database at /Users/stephen/Projects/Nas_search/data/nas_search.db
+2026-03-09 16:48:01 DEBUG    backend.database [MainThread]: Opening new SQLite connection to /Users/stephen/Projects/Nas_search/data/nas_search.db (thread=MainThread)
+2026-03-09 16:48:01 INFO     backend.database [MainThread]: Database ready: 0 files currently indexed
+2026-03-09 16:48:01 INFO     backend.indexer [MainThread]: === Indexing started (full scan) ===
+2026-03-09 16:48:01 INFO     backend.indexer [MainThread]: Extensions filter: {'epub', 'pdf'}
+2026-03-09 16:48:01 INFO     backend.indexer [MainThread]: Folders to scan: 1
+2026-03-09 16:48:01 INFO     backend.indexer [MainThread]: Existing indexed files: 0
+2026-03-09 16:48:01 INFO     backend.indexer [MainThread]: Scanning folder: TestBooks (/tmp/nas_test_books)
+2026-03-09 16:48:01 INFO     backend.indexer [MainThread]:   TestBooks done: +8 added, ~0 updated, 0 errors, 9 dirs, 8 matching files in 0.0s
+2026-03-09 16:48:01 INFO     backend.indexer [MainThread]: === Indexing complete ===
+2026-03-09 16:48:01 INFO     backend.indexer [MainThread]:   Results: +8 added, ~0 updated, -0 removed
+2026-03-09 16:48:01 INFO     backend.indexer [MainThread]:   Scanned: 9 directories, 8 matching files
+2026-03-09 16:48:01 INFO     backend.indexer [MainThread]:   Errors: 0
+2026-03-09 16:48:01 INFO     backend.indexer [MainThread]:   Duration: 0.0s
+2026-03-09 16:48:01 DEBUG    backend.search [MainThread]: FTS query: tokens=['tolkien', 'fellowship'] fts_terms='"tolkien"* AND "fellowship"*'
+2026-03-09 16:48:01 INFO     backend.search [MainThread]: Search: q='tolkien fellowship' folder=all ext=all fuzzy=False type=fts -> 1 results (1 total) in 2.2ms
+2026-03-09 16:48:01 DEBUG    backend.search [MainThread]: FTS query: tokens=['pratchett'] fts_terms='"pratchett"*'
+2026-03-09 16:48:01 INFO     backend.search [MainThread]: Search: q='pratchett' folder=all ext=all fuzzy=False type=fts -> 2 results (2 total) in 0.2ms
+2026-03-09 16:48:01 DEBUG    backend.search [MainThread]: FTS query: tokens=['tolken'] fts_terms='"tolken"*'
+2026-03-09 16:48:01 DEBUG    backend.search [MainThread]: Fuzzy search: scanning 8 files against q='tolken' (threshold=80)
+2026-03-09 16:48:01 INFO     backend.search [MainThread]: Search: q='tolken' folder=all ext=all fuzzy=True type=fuzzy -> 2 results (2 total) in 47.1ms
+2026-03-09 16:48:01 DEBUG    backend.search [MainThread]: FTS query: tokens=['nonexistent'] fts_terms='"nonexistent"*'
+2026-03-09 16:48:01 INFO     backend.search [MainThread]: Search: q='nonexistent' folder=all ext=all fuzzy=False type=fts -> 0 results (0 total) in 0.2ms
+2026-03-09 16:48:01 DEBUG    backend.search [MainThread]: Zero results for q='nonexistent' (fuzzy=False)
