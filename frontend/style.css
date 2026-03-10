@@ -602,6 +602,7 @@ footer button:hover {
     padding: 16px 0 8px;
     border-bottom: 1px solid #0f3460;
     margin-bottom: 12px;
+    grid-column: 1 / -1;
 }
 
 .ab-recent-grid {
@@ -609,6 +610,7 @@ footer button:hover {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 16px;
     margin-bottom: 8px;
+    grid-column: 1 / -1;
 }
 
 #audiobooks-toolbar {
@@ -690,6 +692,7 @@ footer button:hover {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
+    grid-column: 1 / -1;
 }
 
 /* Responsive */

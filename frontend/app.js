@@ -690,6 +690,9 @@ function setupTabs() {
 
 let audiobooksLoaded = false;
 let abSearchTimeout = null;
+let cachedAudiobooks = null;
+let cachedAbSort = null;
+let cachedAbSearch = null;
 
 function setupAudiobookSearch() {
     const input = document.getElementById('ab-search');
@@ -710,24 +713,36 @@ function formatDuration(secs) {
 
 async function loadAudiobooks() {
     const container = document.getElementById('audiobooks-grid');
-    if (!audiobooksLoaded) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:40px">Loading audiobooks...</p>';
+    const sortValue = document.getElementById('audiobook-sort')?.value || 'title';
+    const searchValue = document.getElementById('ab-search')?.value?.trim() || '';
+    const needsFetch = !cachedAudiobooks || cachedAbSort !== sortValue || cachedAbSearch !== searchValue;
+
+    if (needsFetch) {
+        if (!audiobooksLoaded) {
+            container.innerHTML = '<p style="color:#888;text-align:center;padding:40px">Loading audiobooks...</p>';
+        }
+
+        try {
+            const params = new URLSearchParams({ sort: sortValue });
+            if (searchValue) params.set('search', searchValue);
+
+            const resp = await fetch(`${API}/api/audiobooks?${params}`);
+            const data = await resp.json();
+            cachedAudiobooks = data.audiobooks || [];
+            cachedAbSort = sortValue;
+            cachedAbSearch = searchValue;
+            audiobooksLoaded = true;
+        } catch (err) {
+            console.error('Failed to load audiobooks:', err);
+            container.innerHTML = '<p style="color:#e94560;text-align:center;padding:40px">Failed to load audiobooks.</p>';
+            return;
+        }
     }
 
     try {
-        const sortValue = document.getElementById('audiobook-sort')?.value || 'title';
-        const searchValue = document.getElementById('ab-search')?.value?.trim() || '';
-
-        const params = new URLSearchParams({ sort: sortValue });
-        if (searchValue) params.set('search', searchValue);
-
-        const resp = await fetch(`${API}/api/audiobooks?${params}`);
-        const data = await resp.json();
-        audiobooksLoaded = true;
-
         const filterValue = document.getElementById('audiobook-filter')?.value || 'all';
         const groupBySeries = document.getElementById('ab-group-toggle')?.checked || false;
-        let books = data.audiobooks || [];
+        let books = [...cachedAudiobooks];
 
         // Client-side status filter
         if (filterValue === 'in-progress') {

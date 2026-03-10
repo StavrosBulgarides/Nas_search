@@ -213,6 +213,7 @@ async def list_audiobooks(
     """List all folders containing MP3 files, with metadata and progress."""
     try:
         with get_db() as conn:
+            # Batch query 1: all MP3 folders with counts
             folders = conn.execute("""
                 SELECT folder_path, COUNT(*) as file_count, SUM(size) as total_size
                 FROM files WHERE extension = 'mp3'
@@ -220,52 +221,53 @@ async def list_audiobooks(
                 ORDER BY folder_path
             """).fetchall()
 
+            folder_map = {f["folder_path"]: dict(f) for f in folders}
+
+            # Batch query 2: all cached metadata in one go
+            all_meta = conn.execute("SELECT * FROM audiobook_meta").fetchall()
+            meta_map = {row["folder_path"]: dict(row) for row in all_meta}
+
+            # Batch query 3: all progress in one go
+            all_progress = conn.execute("SELECT * FROM audiobook_progress").fetchall()
+            progress_map = {row["folder_path"]: dict(row) for row in all_progress}
+
             result = []
-            for f in folders:
-                folder_path = f["folder_path"]
-
-                # Get or compute cached metadata
-                meta = _get_cached_meta(conn, folder_path)
+            for folder_path, f in folder_map.items():
+                meta = meta_map.get(folder_path)
                 if not meta:
-                    computed = _compute_metadata(conn, folder_path)
-                    meta = _get_cached_meta(conn, folder_path) if computed else {}
+                    meta = {
+                        "title": os.path.basename(folder_path),
+                        "author": "",
+                        "album": "",
+                        "series": os.path.basename(os.path.dirname(folder_path)),
+                        "total_duration": 0,
+                        "file_count": f["file_count"],
+                    }
 
-                # Get progress
-                progress_row = conn.execute(
-                    "SELECT * FROM audiobook_progress WHERE folder_path = ?",
-                    (folder_path,),
-                ).fetchone()
-                progress = dict(progress_row) if progress_row else None
+                progress = progress_map.get(folder_path)
 
-                # Compute completion percentage
+                # Approximate completion percentage without extra queries
                 completion_pct = 0.0
                 if progress and progress.get("is_finished"):
                     completion_pct = 100.0
-                elif progress and progress.get("position", 0) > 0 and meta:
+                elif progress and progress.get("position", 0) > 0:
                     total_dur = meta.get("total_duration", 0)
-                    if total_dur > 0:
-                        # Approximate: use file index for speed (exact calc is expensive)
-                        # Count files before current file
-                        all_files = conn.execute(
-                            "SELECT full_path FROM files WHERE folder_path = ? AND extension = 'mp3' ORDER BY full_path",
-                            (folder_path,),
-                        ).fetchall()
-                        file_paths = [r["full_path"] for r in all_files]
-                        current = progress.get("current_file", "")
-                        if current in file_paths:
-                            idx = file_paths.index(current)
-                            # Approximate: (files_done + fraction_of_current) / total_files
-                            file_count = len(file_paths)
-                            if file_count > 0:
-                                completion_pct = round(((idx + 0.5) / file_count) * 100, 1)
+                    file_count = f["file_count"]
+                    if total_dur > 0 and file_count > 0:
+                        # Rough estimate: assume equal file lengths
+                        avg_dur = total_dur / file_count
+                        # We don't know which file index without another query,
+                        # so use position / avg_dur as a rough file index
+                        est_completed_secs = progress.get("position", 0)
+                        completion_pct = round(min(99.9, (est_completed_secs / total_dur) * 100), 1)
 
                 book = {
                     "folder_path": folder_path,
-                    "title": meta.get("title", os.path.basename(folder_path)) if meta else os.path.basename(folder_path),
-                    "author": meta.get("author", "") if meta else "",
-                    "album": meta.get("album", "") if meta else "",
-                    "series": meta.get("series", "") if meta else "",
-                    "total_duration": meta.get("total_duration", 0) if meta else 0,
+                    "title": meta.get("title", os.path.basename(folder_path)),
+                    "author": meta.get("author", ""),
+                    "album": meta.get("album", ""),
+                    "series": meta.get("series", ""),
+                    "total_duration": meta.get("total_duration", 0),
                     "file_count": f["file_count"],
                     "total_size": f["total_size"],
                     "completion_pct": completion_pct,
@@ -280,7 +282,8 @@ async def list_audiobooks(
                           q in b["title"].lower() or
                           q in b["author"].lower() or
                           q in b["album"].lower() or
-                          q in b["series"].lower()]
+                          q in b["series"].lower() or
+                          q in b["folder_path"].lower()]
 
             # Apply sort
             if sort == "author":
