@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadRecentFiles();
     renderPinnedFolders();
     setupEventListeners();
+    setupTabs();
+    setupAudiobookSearch();
 });
 
 function setupEventListeners() {
@@ -59,6 +61,13 @@ function setupEventListeners() {
     document.getElementById('clear-recent-btn').addEventListener('click', () => {
         localStorage.removeItem('recentFiles');
         loadRecentFiles();
+    });
+
+    // Clear all pinned folders
+    document.getElementById('clear-pinned-btn').addEventListener('click', () => {
+        pinnedFolders = [];
+        localStorage.setItem('pinnedFolders', JSON.stringify(pinnedFolders));
+        renderPinnedFolders();
     });
 
     // Clear search button
@@ -256,12 +265,28 @@ function loadRecentFiles() {
     }
     for (const file of recentFiles) {
         const li = document.createElement('li');
-        li.textContent = file.filename;
-        li.title = file.full_path;
-        li.addEventListener('click', () => {
+        li.classList.add('pinned-item');
+
+        const name = document.createElement('span');
+        name.textContent = file.filename;
+        name.title = file.full_path;
+        name.addEventListener('click', () => {
             document.getElementById('search-input').value = file.filename.replace(/\.[^.]+$/, '');
             doSearch(false);
         });
+
+        const remove = document.createElement('span');
+        remove.classList.add('unpin');
+        remove.textContent = 'x';
+        remove.addEventListener('click', () => {
+            let rf = JSON.parse(localStorage.getItem('recentFiles') || '[]');
+            rf = rf.filter(f => f.full_path !== file.full_path);
+            localStorage.setItem('recentFiles', JSON.stringify(rf));
+            loadRecentFiles();
+        });
+
+        li.appendChild(name);
+        li.appendChild(remove);
         ul.appendChild(li);
     }
 }
@@ -497,10 +522,18 @@ const TRANSCODE_VIDEO = ['mkv', 'avi', 'wmv', 'flv'];
 const COMIC_EXTENSIONS = ['cbz', 'cbr', 'cb7'];
 // Epub — use built-in epub reader
 const EPUB_EXTENSIONS = ['epub'];
+// Audio — use built-in audiobook player
+const AUDIO_EXTENSIONS = ['mp3'];
 
 function buildOpenFileUrl(fullPath, extension) {
     const ext = (extension || '').toLowerCase();
     const nasPath = containerToNasPath(fullPath);
+
+    if (AUDIO_EXTENSIONS.includes(ext)) {
+        // Open in audiobook player — folder is the book, file is the starting track
+        const folder = fullPath.substring(0, fullPath.lastIndexOf('/'));
+        return `/audiobook-player?folder=${encodeURIComponent(folder)}&file=${encodeURIComponent(fullPath)}`;
+    }
 
     if (EPUB_EXTENSIONS.includes(ext)) {
         return `/epub-reader?path=${encodeURIComponent(fullPath)}`;
@@ -552,4 +585,201 @@ function escHtml(str) {
 
 function escAttr(str) {
     return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;');
+}
+
+// ── Audiobooks Tab ──
+
+function setupTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('search-view').style.display = tab === 'search' ? '' : 'none';
+            document.getElementById('audiobooks-view').style.display = tab === 'audiobooks' ? '' : 'none';
+            if (tab === 'audiobooks') loadAudiobooks();
+        });
+    });
+}
+
+let audiobooksLoaded = false;
+let abSearchTimeout = null;
+
+function setupAudiobookSearch() {
+    const input = document.getElementById('ab-search');
+    if (!input) return;
+    input.addEventListener('input', () => {
+        clearTimeout(abSearchTimeout);
+        abSearchTimeout = setTimeout(() => loadAudiobooks(), 300);
+    });
+}
+
+function formatDuration(secs) {
+    if (!secs || isNaN(secs)) return '0m';
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+}
+
+async function loadAudiobooks() {
+    const container = document.getElementById('audiobooks-grid');
+    if (!audiobooksLoaded) {
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:40px">Loading audiobooks...</p>';
+    }
+
+    try {
+        const sortValue = document.getElementById('audiobook-sort')?.value || 'title';
+        const searchValue = document.getElementById('ab-search')?.value?.trim() || '';
+
+        const params = new URLSearchParams({ sort: sortValue });
+        if (searchValue) params.set('search', searchValue);
+
+        const resp = await fetch(`${API}/api/audiobooks?${params}`);
+        const data = await resp.json();
+        audiobooksLoaded = true;
+
+        const filterValue = document.getElementById('audiobook-filter')?.value || 'all';
+        const groupBySeries = document.getElementById('ab-group-toggle')?.checked || false;
+        let books = data.audiobooks || [];
+
+        // Client-side status filter
+        if (filterValue === 'in-progress') {
+            books = books.filter(b => b.progress && !b.progress.is_finished && b.progress.position > 0);
+        } else if (filterValue === 'finished') {
+            books = books.filter(b => b.progress && b.progress.is_finished);
+        } else if (filterValue === 'not-started') {
+            books = books.filter(b => !b.progress || b.progress.position === 0);
+        }
+
+        if (books.length === 0) {
+            container.innerHTML = '<p style="color:#888;text-align:center;padding:40px">No audiobooks found.</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+
+        // Recently played section (show up to 5, only on "All" filter with no search)
+        if (filterValue === 'all' && !searchValue && !groupBySeries) {
+            const recentBooks = books
+                .filter(b => b.progress && b.progress.last_played && !b.progress.is_finished)
+                .sort((a, b) => b.progress.last_played - a.progress.last_played)
+                .slice(0, 5);
+
+            if (recentBooks.length > 0) {
+                const header = document.createElement('div');
+                header.className = 'ab-section-header';
+                header.textContent = 'Recently Played';
+                container.appendChild(header);
+
+                const recentGrid = document.createElement('div');
+                recentGrid.className = 'ab-recent-grid';
+                for (const book of recentBooks) {
+                    recentGrid.appendChild(buildAudiobookCard(book));
+                }
+                container.appendChild(recentGrid);
+
+                const allHeader = document.createElement('div');
+                allHeader.className = 'ab-section-header';
+                allHeader.textContent = 'All Audiobooks';
+                container.appendChild(allHeader);
+            }
+        }
+
+        if (groupBySeries) {
+            // Group books by series
+            const groups = {};
+            for (const book of books) {
+                const series = book.series || 'Ungrouped';
+                if (!groups[series]) groups[series] = [];
+                groups[series].push(book);
+            }
+
+            const sortedSeries = Object.keys(groups).sort((a, b) => {
+                if (a === 'Ungrouped') return 1;
+                if (b === 'Ungrouped') return -1;
+                return a.toLowerCase().localeCompare(b.toLowerCase());
+            });
+
+            for (const series of sortedSeries) {
+                const header = document.createElement('div');
+                header.className = 'ab-series-header';
+                header.textContent = series;
+                container.appendChild(header);
+
+                const grid = document.createElement('div');
+                grid.className = 'ab-series-grid';
+                for (const book of groups[series]) {
+                    grid.appendChild(buildAudiobookCard(book));
+                }
+                container.appendChild(grid);
+            }
+        } else {
+            for (const book of books) {
+                container.appendChild(buildAudiobookCard(book));
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load audiobooks:', err);
+        container.innerHTML = '<p style="color:#e94560;text-align:center;padding:40px">Failed to load audiobooks.</p>';
+    }
+}
+
+function buildAudiobookCard(book) {
+    const card = document.createElement('div');
+    card.className = 'audiobook-card';
+
+    const nowPlayingFolder = localStorage.getItem('audiobook-now-playing');
+    if (nowPlayingFolder === book.folder_path) {
+        card.classList.add('ab-now-playing');
+    }
+
+    const coverUrl = `/api/audiobook/cover?folder=${encodeURIComponent(book.folder_path)}`;
+    const playerUrl = `/audiobook-player?folder=${encodeURIComponent(book.folder_path)}`;
+
+    let statusHtml = '';
+    if (nowPlayingFolder === book.folder_path) {
+        statusHtml = '<span class="ab-status ab-playing">Now Playing</span>';
+    } else if (book.progress && book.progress.is_finished) {
+        statusHtml = '<span class="ab-status ab-finished">Finished</span>';
+    } else if (book.progress && book.progress.position > 0) {
+        statusHtml = '<span class="ab-status ab-progress">In Progress</span>';
+    }
+
+    let lastPlayed = '';
+    if (book.progress && book.progress.last_played) {
+        lastPlayed = formatDate(book.progress.last_played);
+    }
+
+    const pct = book.completion_pct || 0;
+    const progressBarHtml = (book.progress && !book.progress.is_finished && pct > 0)
+        ? `<div class="ab-progress-bar"><div class="ab-progress-fill" style="width:${pct}%"></div></div>
+           <div class="ab-meta">${pct}% complete</div>`
+        : '';
+
+    const durationStr = book.total_duration > 0 ? formatDuration(book.total_duration) : '';
+    const metaParts = [];
+    if (book.author) metaParts.push(escHtml(book.author));
+    metaParts.push(`${book.file_count} file${book.file_count !== 1 ? 's' : ''}`);
+    if (durationStr) metaParts.push(durationStr);
+
+    card.innerHTML = `
+        <div class="ab-cover">
+            <img src="${coverUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+            <div class="ab-cover-placeholder" style="display:none">&#9835;</div>
+        </div>
+        <div class="ab-info">
+            <div class="ab-title" title="${escAttr(book.folder_path)}">${escHtml(book.title)}</div>
+            <div class="ab-meta">${metaParts.join(' &middot; ')}</div>
+            ${lastPlayed ? `<div class="ab-meta">${lastPlayed}</div>` : ''}
+            ${progressBarHtml}
+            ${statusHtml}
+        </div>
+    `;
+
+    card.addEventListener('click', () => {
+        window.location.href = playerUrl;
+    });
+
+    return card;
 }

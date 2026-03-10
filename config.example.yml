@@ -9,6 +9,7 @@ extensions:
   - mkv
   - cbz
   - cbr
+  - mp3
 
 max_results: 100
 fuzzy_threshold: 80

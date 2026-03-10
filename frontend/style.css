@@ -150,15 +150,17 @@ main {
     align-items: center;
 }
 
-#clear-recent-btn {
-    font-size: 0.7rem;
+#clear-recent-btn, #clear-pinned-btn {
+    font-size: 0.75rem;
     color: #555;
     cursor: pointer;
     text-transform: none;
     letter-spacing: 0;
+    width: 20px;
+    text-align: center;
 }
 
-#clear-recent-btn:hover {
+#clear-recent-btn:hover, #clear-pinned-btn:hover {
     color: #e94560;
 }
 
@@ -184,7 +186,7 @@ main {
 .pinned-item {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 0;
 }
 
 .pinned-item span:first-child {
@@ -200,7 +202,9 @@ main {
     font-size: 0.75rem;
     color: #666;
     cursor: pointer;
-    padding: 2px 6px;
+    width: 20px;
+    text-align: center;
+    padding: 2px 0;
 }
 
 .pinned-item .unpin:hover {
@@ -486,6 +490,206 @@ footer button:hover {
 
 #save-settings-btn:hover {
     background: #c73650;
+}
+
+/* Tab bar */
+#tab-bar {
+    display: flex;
+    gap: 4px;
+}
+
+.tab-btn {
+    padding: 6px 16px;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    background: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.tab-btn:hover { color: #e0e0e0; border-color: #e94560; }
+.tab-btn.active { background: #e94560; border-color: #e94560; color: white; }
+
+/* Audiobooks grid */
+#audiobooks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.audiobook-card {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.audiobook-card:hover { border-color: #e94560; }
+
+.ab-cover {
+    width: 100%;
+    aspect-ratio: 1;
+    background: #0f3460;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.ab-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ab-cover-placeholder {
+    font-size: 3rem;
+    color: #1a1a2e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.ab-info {
+    padding: 10px 12px;
+}
+
+.ab-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #e0e0e0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+
+.ab-meta {
+    font-size: 0.75rem;
+    color: #888;
+    margin-bottom: 4px;
+}
+
+.ab-status {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-top: 2px;
+}
+
+.ab-progress { background: #0f3460; color: #e94560; }
+.ab-finished { background: #1a4a2e; color: #4ae960; }
+.ab-playing { background: #3a1a4e; color: #c45aff; }
+
+.audiobook-card.ab-now-playing {
+    border-color: #c45aff;
+    box-shadow: 0 0 8px rgba(196, 90, 255, 0.3);
+}
+
+/* Section headers in audiobook grid */
+.ab-section-header {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #888;
+    letter-spacing: 0.5px;
+    padding: 16px 0 8px;
+    border-bottom: 1px solid #0f3460;
+    margin-bottom: 12px;
+}
+
+.ab-recent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+#audiobooks-toolbar {
+    margin-bottom: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+#audiobooks-toolbar select {
+    padding: 6px 10px;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    background: #16213e;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+}
+
+#ab-search-wrapper {
+    flex: 1;
+    min-width: 150px;
+    max-width: 300px;
+}
+
+#ab-search {
+    width: 100%;
+    padding: 6px 12px;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    background: #16213e;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+#ab-search:focus { border-color: #e94560; }
+
+#ab-group-label {
+    font-size: 0.85rem;
+    color: #888;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+#ab-group-label input { margin-right: 4px; }
+
+/* Progress bar on cards */
+.ab-progress-bar {
+    width: 100%;
+    height: 3px;
+    background: #0f3460;
+    border-radius: 2px;
+    margin: 6px 0 4px;
+    overflow: hidden;
+}
+
+.ab-progress-fill {
+    height: 100%;
+    background: #e94560;
+    border-radius: 2px;
+    transition: width 0.3s;
+}
+
+/* Series grouping */
+.ab-series-header {
+    grid-column: 1 / -1;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #e94560;
+    padding: 12px 0 4px;
+    border-bottom: 1px solid #0f3460;
+    margin-bottom: 8px;
+}
+
+.ab-series-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
 }
 
 /* Responsive */

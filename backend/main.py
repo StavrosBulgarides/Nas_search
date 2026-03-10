@@ -24,6 +24,7 @@ from backend.scheduler import start_scheduler, stop_scheduler
 from backend.models import SearchResponse, IndexStatus, TrackClick
 from backend.stream import router as stream_router
 from backend.comic import router as comic_router
+from backend.audiobook import router as audiobook_router
 
 
 def setup_logging():
@@ -85,6 +86,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Search Wizard", lifespan=lifespan)
 app.include_router(stream_router)
 app.include_router(comic_router)
+app.include_router(audiobook_router)
 
 
 # ── Request logging middleware ──
@@ -142,6 +144,11 @@ async def reader():
 @app.get("/epub-reader")
 async def epub_reader():
     return FileResponse(str(frontend_dir / "epub-reader.html"))
+
+
+@app.get("/audiobook-player")
+async def audiobook_player():
+    return FileResponse(str(frontend_dir / "audiobook-player.html"))
 
 
 @app.get("/api/file")

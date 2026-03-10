@@ -9,7 +9,13 @@
 </head>
 <body>
     <header>
-        <h1>Search Wizard</h1>
+        <div style="display:flex;align-items:center;gap:16px">
+            <h1>Search Wizard</h1>
+            <nav id="tab-bar">
+                <button class="tab-btn active" data-tab="search">Search</button>
+                <button class="tab-btn" data-tab="audiobooks">Audiobooks</button>
+            </nav>
+        </div>
         <div id="status-bar">
             <span id="file-count">--</span> files indexed
             <span id="index-status"></span>
@@ -17,6 +23,7 @@
     </header>
 
     <main>
+      <div id="search-view">
         <section id="search-section">
             <div id="search-bar">
                 <div id="search-input-wrapper">
@@ -40,7 +47,7 @@
         <div id="content-area">
             <aside id="sidebar">
                 <div id="pinned-folders">
-                    <h3>Pinned Folders</h3>
+                    <h3>Pinned Folders <span id="clear-pinned-btn" title="Clear all pinned folders">x</span></h3>
                     <ul id="pinned-list"></ul>
                 </div>
                 <div id="recent-files">
@@ -74,6 +81,32 @@
                 </div>
             </section>
         </div>
+      </div>
+
+      <div id="audiobooks-view" style="display:none">
+        <div id="audiobooks-toolbar">
+            <div id="ab-search-wrapper">
+                <input type="text" id="ab-search" placeholder="Search audiobooks...">
+            </div>
+            <select id="audiobook-filter" onchange="loadAudiobooks()">
+                <option value="all">All</option>
+                <option value="in-progress">In Progress</option>
+                <option value="finished">Finished</option>
+                <option value="not-started">Not Started</option>
+            </select>
+            <select id="audiobook-sort" onchange="loadAudiobooks()">
+                <option value="title">Sort: Title</option>
+                <option value="author">Sort: Author</option>
+                <option value="recent">Sort: Recently Played</option>
+                <option value="duration">Sort: Duration</option>
+                <option value="series">Sort: Series</option>
+            </select>
+            <label id="ab-group-label">
+                <input type="checkbox" id="ab-group-toggle" onchange="loadAudiobooks()"> Group by series
+            </label>
+        </div>
+        <div id="audiobooks-grid"></div>
+      </div>
     </main>
 
     <footer>

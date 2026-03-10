@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Wizard - Audiobook Player</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #toolbar {
+            background: #16213e;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #0f3460;
+            flex-shrink: 0;
+        }
+
+        #toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        a.back-link {
+            color: #e94560;
+            text-decoration: none;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        #book-title {
+            font-size: 0.9rem;
+            color: #e0e0e0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #book-artist {
+            font-size: 0.8rem;
+            color: #888;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Main layout */
+        #main-container {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+        }
+
+        /* File list sidebar */
+        #file-list-panel {
+            width: 300px;
+            border-right: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        #file-list-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid #0f3460;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: #888;
+            letter-spacing: 0.5px;
+        }
+
+        #file-list {
+            flex: 1;
+            overflow-y: auto;
+            list-style: none;
+        }
+
+        #file-list li {
+            padding: 8px 14px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #b0b0b0;
+            border-bottom: 1px solid #1a1a3e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #file-list li:hover { background: #16213e; color: #e0e0e0; }
+        #file-list li.active { background: #0f3460; color: #e94560; }
+
+        #file-list li .file-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            min-width: 0;
+        }
+
+        #file-list li .file-duration {
+            color: #666;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        /* Chapter items nested under files */
+        #file-list li.chapter-item {
+            padding-left: 28px;
+            font-size: 0.8rem;
+            border-bottom: 1px solid rgba(15, 52, 96, 0.3);
+        }
+
+        #file-list li.chapter-item .file-name {
+            font-size: 0.8rem;
+        }
+
+        #file-list li.file-header {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #666;
+            letter-spacing: 0.3px;
+            cursor: default;
+            padding: 6px 14px 4px;
+            border-bottom: none;
+        }
+
+        #file-list li.file-header:hover { background: none; color: #666; }
+
+        /* Player area */
+        #player-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            min-width: 0;
+        }
+
+        /* Cover art */
+        #cover-container {
+            width: 250px;
+            height: 250px;
+            background: #16213e;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        #cover-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: cover;
+        }
+
+        #cover-placeholder {
+            font-size: 4rem;
+            color: #0f3460;
+        }
+
+        /* Now playing info */
+        #now-playing {
+            text-align: center;
+            margin-bottom: 24px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        #current-title {
+            font-size: 1rem;
+            color: #e0e0e0;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #current-chapter {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        /* Seek bar */
+        #seek-container {
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 20px;
+        }
+
+        #seek-bar {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #0f3460;
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #seek-bar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e94560;
+            cursor: pointer;
+        }
+
+        #seek-times {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        /* Transport controls */
+        #transport {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        #transport button {
+            border: none;
+            background: none;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 8px;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #transport button:hover { color: #e94560; }
+
+        #play-btn {
+            width: 56px !important;
+            height: 56px !important;
+            font-size: 1.4rem !important;
+            border: 2px solid #e94560 !important;
+        }
+
+        #play-btn:hover { background: rgba(233, 69, 96, 0.15); }
+
+        /* Skip labels */
+        .skip-btn {
+            position: relative;
+        }
+
+        .skip-label {
+            position: absolute;
+            bottom: -2px;
+            font-size: 0.55rem;
+            color: #888;
+        }
+
+        /* Secondary controls */
+        #secondary-controls {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        #speed-select {
+            padding: 4px 8px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #16213e;
+            color: #e0e0e0;
+            font-size: 0.8rem;
+        }
+
+        #volume-slider {
+            width: 100px;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #0f3460;
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            cursor: pointer;
+        }
+
+        #skip-amount-select {
+            padding: 4px 8px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #16213e;
+            color: #e0e0e0;
+            font-size: 0.8rem;
+        }
+
+        /* Sleep timer & bookmark */
+        #extra-controls {
+            display: flex;
+            gap: 12px;
+        }
+
+        #extra-controls button {
+            padding: 5px 14px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        #extra-controls button:hover { border-color: #e94560; color: #e94560; }
+        #extra-controls button.active { border-color: #e94560; color: #e94560; }
+
+        /* Bookmarks right panel */
+        #bookmarks-panel {
+            width: 380px;
+            border-left: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        #bookmarks-panel-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid #0f3460;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: #888;
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #bookmark-now-btn {
+            padding: 3px 10px;
+            border: 1px solid #e94560;
+            border-radius: 4px;
+            background: #e94560;
+            color: white;
+            cursor: pointer;
+            font-size: 0.75rem;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        #bookmark-now-btn:hover { background: #c73650; }
+
+        #bookmarks-list {
+            flex: 1;
+            overflow-y: auto;
+            list-style: none;
+        }
+
+        #bookmarks-list li {
+            padding: 8px 14px;
+            border-bottom: 1px solid #1a1a3e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        #bookmarks-list li:hover { background: #16213e; }
+        #bookmarks-list .bm-info { flex: 1; min-width: 0; }
+        #bookmarks-list .bm-time { color: #e94560; }
+        #bookmarks-list .bm-note { color: #888; font-size: 0.75rem; margin-top: 2px; }
+        #bookmarks-list .bm-file { color: #666; font-size: 0.7rem; }
+        #bookmarks-list .bm-date { color: #555; font-size: 0.65rem; }
+
+        #bookmarks-list .bm-delete {
+            color: #666;
+            cursor: pointer;
+            padding: 4px 8px;
+            flex-shrink: 0;
+        }
+
+        #bookmarks-list .bm-delete:hover { color: #e94560; }
+
+        #bookmarks-list .bm-book {
+            color: #e94560;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-bottom: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #bookmarks-list li.current-book .bm-book {
+            color: #c45aff;
+        }
+
+        #bookmarks-list .bm-section {
+            padding: 8px 14px 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #666;
+            letter-spacing: 0.3px;
+            border-bottom: 1px solid #0f3460;
+            cursor: default;
+        }
+
+        #bookmarks-list .bm-section:hover { background: none; }
+
+        #bookmarks-empty {
+            padding: 20px 14px;
+            color: #666;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        /* Confirm dialog */
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 60;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-modal.show { display: flex; }
+
+        .confirm-modal .modal-box {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 24px;
+            width: 340px;
+            text-align: center;
+        }
+
+        .confirm-modal .modal-box p {
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .confirm-modal .modal-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .confirm-modal .modal-buttons button {
+            padding: 8px 20px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .confirm-modal .modal-buttons button:hover { border-color: #e94560; color: #e94560; }
+        .confirm-modal .modal-buttons button.primary { background: #e94560; border-color: #e94560; color: white; }
+        .confirm-modal .modal-buttons button.primary:hover { background: #c73650; }
+
+        /* Sleep timer modal */
+        #sleep-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #sleep-modal.show { display: flex; }
+
+        #sleep-modal .modal-box {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 24px;
+            width: 300px;
+        }
+
+        #sleep-modal h3 { color: #e94560; margin-bottom: 16px; }
+
+        #sleep-modal button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        #sleep-modal button:hover { border-color: #e94560; color: #e94560; }
+        #sleep-modal button.cancel { border: none; color: #888; margin-top: 8px; }
+
+        /* (bookmark modal styles removed — using right panel now) */
+
+        /* Loading state */
+        #loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a2e;
+            color: #888;
+            z-index: 10;
+        }
+
+        #sleep-indicator {
+            font-size: 0.75rem;
+            color: #e94560;
+            margin-top: 8px;
+            min-height: 1.2em;
+        }
+
+        /* Chapters toggle button (mobile) */
+        #chapters-toggle {
+            display: none;
+            padding: 5px 12px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        #chapters-toggle:hover { border-color: #e94560; color: #e94560; }
+
+        @media (max-width: 768px) {
+            #file-list-panel {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                z-index: 20;
+                background: #1a1a2e;
+                border-right: none;
+            }
+
+            #file-list-panel.mobile-open {
+                display: flex;
+            }
+
+            #chapters-toggle { display: inline-block; }
+            #player-area { padding: 20px; }
+            #cover-container { width: 180px; height: 180px; }
+            #bookmarks-panel { display: none; }
+
+            #file-list-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <div id="toolbar-left">
+            <a href="/" class="back-link" id="back-btn">Back</a>
+            <div>
+                <div id="book-title"></div>
+                <div id="book-artist"></div>
+            </div>
+        </div>
+        <button id="chapters-toggle">Chapters</button>
+    </div>
+
+    <div id="main-container">
+        <div id="loading">Loading audiobook...</div>
+
+        <div id="file-list-panel">
+            <div id="file-list-header">
+                <span>Chapters / Files</span>
+                <button id="chapters-close" style="display:none;background:none;border:none;color:#888;cursor:pointer;font-size:1.2rem">&times;</button>
+            </div>
+            <ul id="file-list"></ul>
+        </div>
+
+        <div id="player-area">
+            <div id="cover-container">
+                <span id="cover-placeholder">&#9835;</span>
+                <img id="cover-img" style="display:none" />
+            </div>
+
+            <div id="now-playing">
+                <div id="current-title">--</div>
+                <div id="current-chapter">--</div>
+            </div>
+
+            <div id="seek-container">
+                <input type="range" id="seek-bar" min="0" max="100" value="0" step="0.1">
+                <div id="seek-times">
+                    <span id="current-time">0:00</span>
+                    <span id="total-time">0:00</span>
+                </div>
+            </div>
+
+            <div id="transport">
+                <button id="prev-file-btn" title="Previous file">&#9198;</button>
+                <button id="skip-back-btn" class="skip-btn" title="Skip back">
+                    &#8634;<span class="skip-label">30s</span>
+                </button>
+                <button id="play-btn" title="Play/Pause">&#9654;</button>
+                <button id="skip-fwd-btn" class="skip-btn" title="Skip forward">
+                    &#8635;<span class="skip-label">30s</span>
+                </button>
+                <button id="next-file-btn" title="Next file">&#9197;</button>
+            </div>
+
+            <div id="secondary-controls">
+                <div class="control-group">
+                    <label>Speed</label>
+                    <select id="speed-select">
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="1.75">1.75x</option>
+                        <option value="2">2x</option>
+                        <option value="2.5">2.5x</option>
+                        <option value="3">3x</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Skip</label>
+                    <select id="skip-amount-select">
+                        <option value="10">10s</option>
+                        <option value="15">15s</option>
+                        <option value="30" selected>30s</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Vol</label>
+                    <input type="range" id="volume-slider" min="0" max="1" value="1" step="0.05">
+                </div>
+            </div>
+
+            <div id="extra-controls">
+                <button id="sleep-btn">Sleep Timer</button>
+                <button id="finished-btn" title="Mark as finished">Mark Finished</button>
+            </div>
+
+            <div id="sleep-indicator"></div>
+        </div>
+
+        <div id="bookmarks-panel">
+            <div id="bookmarks-panel-header">
+                <span>Bookmarks</span>
+                <button id="bookmark-now-btn">Bookmark Current Position</button>
+            </div>
+            <ul id="bookmarks-list"></ul>
+        </div>
+    </div>
+
+    <!-- Sleep Timer Modal -->
+    <div id="sleep-modal">
+        <div class="modal-box">
+            <h3>Sleep Timer</h3>
+            <button data-mins="15">15 minutes</button>
+            <button data-mins="30">30 minutes</button>
+            <button data-mins="45">45 minutes</button>
+            <button data-mins="60">60 minutes</button>
+            <button data-mins="90">90 minutes</button>
+            <button id="sleep-end-file">End of current file</button>
+            <button id="sleep-end-chapter" style="display:none">End of current chapter</button>
+            <button id="sleep-cancel-timer" style="display:none">Cancel Timer</button>
+            <button class="cancel" id="sleep-close">Close</button>
+        </div>
+    </div>
+
+    <!-- Confirm Dialog (reusable) -->
+    <div id="confirm-dialog" class="confirm-modal">
+        <div class="modal-box">
+            <p id="confirm-message"></p>
+            <div class="modal-buttons" id="confirm-buttons"></div>
+        </div>
+    </div>
+
+    <audio id="audio" preload="auto"></audio>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const folderPath = params.get('folder');
+        const startFile = params.get('file');  // optional: start at specific file
+
+        const audio = document.getElementById('audio');
+        let files = [];
+        let currentIndex = 0;
+        let skipAmount = 30;
+        let saveInterval = null;
+        let sleepTimer = null;
+        let sleepEndOfFile = false;
+        let sleepEndOfChapter = false;
+        let bookmarks = [];
+
+        // Unified chapter list: each entry = { fileIndex, title, startTime, endTime, isEmbedded }
+        // For multi-file books without embedded chapters, each file = one chapter.
+        // For files with embedded chapters, chapters are nested within the file.
+        let chapters = [];
+        let currentChapterIndex = -1;
+
+        // ── Build unified chapter list ──
+
+        function buildChapterList() {
+            chapters = [];
+            files.forEach((f, fileIdx) => {
+                if (f.chapters && f.chapters.length > 0) {
+                    // File has embedded chapters
+                    f.chapters.forEach((ch, chIdx) => {
+                        chapters.push({
+                            fileIndex: fileIdx,
+                            title: ch.title,
+                            startTime: ch.start,
+                            endTime: ch.end,
+                            isEmbedded: true,
+                            fileTitle: f.title || f.filename.replace(/\.mp3$/i, ''),
+                        });
+                    });
+                } else {
+                    // Whole file is one chapter
+                    chapters.push({
+                        fileIndex: fileIdx,
+                        title: f.title || f.filename.replace(/\.mp3$/i, ''),
+                        startTime: 0,
+                        endTime: f.duration,
+                        isEmbedded: false,
+                        fileTitle: f.title || f.filename.replace(/\.mp3$/i, ''),
+                    });
+                }
+            });
+        }
+
+        function getCurrentChapter() {
+            if (!files.length) return -1;
+            const time = audio.currentTime || 0;
+            for (let i = 0; i < chapters.length; i++) {
+                const ch = chapters[i];
+                if (ch.fileIndex === currentIndex) {
+                    if (!ch.isEmbedded) return i;
+                    if (time >= ch.startTime && (time < ch.endTime || ch.endTime <= 0)) return i;
+                }
+            }
+            // Fallback: find first chapter for current file
+            return chapters.findIndex(ch => ch.fileIndex === currentIndex);
+        }
+
+        function hasEmbeddedChapters() {
+            return chapters.some(ch => ch.isEmbedded);
+        }
+
+        // ── Load audiobook ──
+
+        async function init() {
+            if (!folderPath) {
+                document.getElementById('loading').textContent = 'No folder specified.';
+                return;
+            }
+
+            try {
+                const [filesResp, progressResp] = await Promise.all([
+                    fetch(`/api/audiobook/files?folder=${encodeURIComponent(folderPath)}`),
+                    fetch(`/api/audiobook/progress?folder=${encodeURIComponent(folderPath)}`),
+                ]);
+
+                const filesData = await filesResp.json();
+                const progressData = await progressResp.json();
+
+                files = filesData.files;
+                if (files.length === 0) {
+                    document.getElementById('loading').textContent = 'No MP3 files found in this folder.';
+                    return;
+                }
+
+                // Build chapter list from file data
+                buildChapterList();
+
+                // Set book info
+                const title = filesData.title;
+                const artist = files[0].artist || files[0].album || '';
+                document.getElementById('book-title').textContent = title;
+                document.getElementById('book-artist').textContent = artist;
+                document.title = title + ' - Search Wizard';
+
+                // Load cover art
+                loadCover();
+
+                // Build sidebar
+                renderFileList();
+
+                // Show "end of chapter" sleep option if embedded chapters exist
+                if (hasEmbeddedChapters()) {
+                    document.getElementById('sleep-end-chapter').style.display = '';
+                }
+
+                // Determine start position
+                let startIndex = 0;
+                let startPosition = 0;
+
+                if (startFile) {
+                    const idx = files.findIndex(f => f.full_path === startFile);
+                    if (idx >= 0) startIndex = idx;
+                } else if (progressData.progress) {
+                    const prog = progressData.progress;
+                    const idx = files.findIndex(f => f.full_path === prog.current_file);
+                    if (idx >= 0) {
+                        startIndex = idx;
+                        startPosition = prog.position;
+                    }
+                    if (prog.playback_speed) {
+                        document.getElementById('speed-select').value = String(prog.playback_speed);
+                        audio.playbackRate = prog.playback_speed;
+                    }
+                }
+
+                // Load finished state
+                if (progressData.progress && progressData.progress.is_finished) {
+                    isFinished = true;
+                    updateFinishedButton();
+                }
+
+                // Load bookmarks
+                bookmarks = progressData.bookmarks || [];
+                // Fetch all bookmarks across all audiobooks
+                try {
+                    const allResp = await fetch('/api/audiobook/bookmarks/all');
+                    const allData = await allResp.json();
+                    allBookmarks = allData.bookmarks || [];
+                } catch (err) {
+                    allBookmarks = bookmarks.map(b => ({ ...b, book_title: title, file_name: b.file_path.split('/').pop().replace(/\.mp3$/i, '') }));
+                }
+                renderBookmarks();
+
+                // Mark as now playing
+                localStorage.setItem('audiobook-now-playing', folderPath);
+
+                // Hide loading, start playback
+                document.getElementById('loading').style.display = 'none';
+                loadFile(startIndex, startPosition);
+
+                // Auto-save every 5 seconds
+                saveInterval = setInterval(saveProgress, 5000);
+
+            } catch (err) {
+                console.error('Failed to init:', err);
+                document.getElementById('loading').textContent = 'Failed to load audiobook.';
+            }
+        }
+
+        function loadCover() {
+            const img = document.getElementById('cover-img');
+            img.src = `/api/audiobook/cover?folder=${encodeURIComponent(folderPath)}`;
+            img.onload = () => {
+                img.style.display = '';
+                document.getElementById('cover-placeholder').style.display = 'none';
+            };
+            img.onerror = () => { img.style.display = 'none'; };
+        }
+
+        // ── File & Chapter list ──
+
+        function renderFileList() {
+            const ul = document.getElementById('file-list');
+            ul.innerHTML = '';
+
+            let chapterIdx = 0;
+            files.forEach((f, fileIdx) => {
+                const hasChapters = f.chapters && f.chapters.length > 0;
+
+                if (hasChapters && files.length > 1) {
+                    // Show file as a header when there are multiple files
+                    const header = document.createElement('li');
+                    header.className = 'file-header';
+                    header.textContent = f.title || f.filename.replace(/\.mp3$/i, '');
+                    ul.appendChild(header);
+                }
+
+                if (hasChapters) {
+                    // Show each embedded chapter
+                    f.chapters.forEach((ch, ci) => {
+                        const li = document.createElement('li');
+                        li.className = 'chapter-item';
+                        li.dataset.chapterIndex = chapterIdx;
+
+                        const name = document.createElement('span');
+                        name.className = 'file-name';
+                        name.textContent = ch.title;
+
+                        const dur = document.createElement('span');
+                        dur.className = 'file-duration';
+                        dur.textContent = formatTime(ch.end - ch.start);
+
+                        li.appendChild(name);
+                        li.appendChild(dur);
+
+                        const capturedFileIdx = fileIdx;
+                        const capturedStart = ch.start;
+                        li.addEventListener('click', () => {
+                            if (currentIndex !== capturedFileIdx) {
+                                loadFile(capturedFileIdx, capturedStart);
+                            } else {
+                                audio.currentTime = capturedStart;
+                            }
+                        });
+
+                        ul.appendChild(li);
+                        chapterIdx++;
+                    });
+                } else {
+                    // Whole file as a single chapter entry
+                    const li = document.createElement('li');
+                    li.dataset.chapterIndex = chapterIdx;
+
+                    const name = document.createElement('span');
+                    name.className = 'file-name';
+                    name.textContent = f.title || f.filename.replace(/\.mp3$/i, '');
+                    name.title = f.filename;
+
+                    const dur = document.createElement('span');
+                    dur.className = 'file-duration';
+                    dur.textContent = formatTime(f.duration);
+
+                    li.appendChild(name);
+                    li.appendChild(dur);
+                    li.addEventListener('click', () => loadFile(fileIdx, 0));
+                    ul.appendChild(li);
+                    chapterIdx++;
+                }
+            });
+        }
+
+        function highlightCurrentChapter() {
+            const idx = getCurrentChapter();
+            currentChapterIndex = idx;
+            const items = document.querySelectorAll('#file-list li[data-chapter-index]');
+            items.forEach(li => {
+                li.classList.toggle('active', parseInt(li.dataset.chapterIndex) === idx);
+            });
+            const active = document.querySelector('#file-list li.active');
+            if (active) active.scrollIntoView({ block: 'nearest' });
+        }
+
+        // ── Playback ──
+
+        function loadFile(index, startPos) {
+            if (index < 0 || index >= files.length) return;
+            currentIndex = index;
+            const file = files[currentIndex];
+
+            audio.src = `/api/file?path=${encodeURIComponent(file.full_path)}`;
+            audio.playbackRate = parseFloat(document.getElementById('speed-select').value);
+
+            highlightCurrentChapter();
+            updateNowPlaying();
+
+            if (startPos > 0) {
+                audio.addEventListener('loadedmetadata', function onMeta() {
+                    audio.currentTime = startPos;
+                    audio.removeEventListener('loadedmetadata', onMeta);
+                });
+            }
+
+            audio.play().catch(() => {});
+        }
+
+        function updateNowPlaying() {
+            const file = files[currentIndex];
+            const ch = currentChapterIndex >= 0 ? chapters[currentChapterIndex] : null;
+
+            if (ch && ch.isEmbedded) {
+                document.getElementById('current-title').textContent = ch.title;
+                document.getElementById('current-chapter').textContent =
+                    `${ch.fileTitle} \u2022 Chapter ${currentChapterIndex + 1} of ${chapters.length}`;
+            } else {
+                const displayTitle = file.title || file.filename.replace(/\.mp3$/i, '');
+                document.getElementById('current-title').textContent = displayTitle;
+                document.getElementById('current-chapter').textContent =
+                    `File ${currentIndex + 1} of ${files.length}`;
+            }
+        }
+
+        // ── Chapter navigation ──
+
+        function goToNextChapter() {
+            const idx = getCurrentChapter();
+            if (idx < 0 || idx >= chapters.length - 1) return;
+            const next = chapters[idx + 1];
+            if (next.fileIndex !== currentIndex) {
+                loadFile(next.fileIndex, next.startTime);
+            } else {
+                audio.currentTime = next.startTime;
+            }
+        }
+
+        function goToPrevChapter() {
+            const idx = getCurrentChapter();
+            if (idx <= 0) return;
+
+            // If we're more than 3 seconds into the current chapter, restart it
+            const current = chapters[idx];
+            if (current && (audio.currentTime - current.startTime) > 3) {
+                if (current.fileIndex !== currentIndex) {
+                    loadFile(current.fileIndex, current.startTime);
+                } else {
+                    audio.currentTime = current.startTime;
+                }
+                return;
+            }
+
+            const prev = chapters[idx - 1];
+            if (prev.fileIndex !== currentIndex) {
+                loadFile(prev.fileIndex, prev.startTime);
+            } else {
+                audio.currentTime = prev.startTime;
+            }
+        }
+
+        // ── Audio events ──
+
+        audio.addEventListener('timeupdate', () => {
+            if (audio.duration) {
+                const pct = (audio.currentTime / audio.duration) * 100;
+                document.getElementById('seek-bar').value = pct;
+                document.getElementById('current-time').textContent = formatTime(audio.currentTime);
+                document.getElementById('total-time').textContent = formatTime(audio.duration);
+
+                // Update chapter highlight and check end-of-chapter sleep
+                const newChIdx = getCurrentChapter();
+                if (newChIdx !== currentChapterIndex) {
+                    const prevChIdx = currentChapterIndex;
+                    currentChapterIndex = newChIdx;
+                    highlightCurrentChapter();
+                    updateNowPlaying();
+
+                    // Sleep at end of chapter: pause when chapter changes
+                    if (sleepEndOfChapter && prevChIdx >= 0 && newChIdx > prevChIdx) {
+                        audio.pause();
+                        clearSleepTimer();
+                        updatePlayButton();
+                    }
+                }
+            }
+        });
+
+        audio.addEventListener('ended', () => {
+            if (sleepEndOfFile) {
+                clearSleepTimer();
+                audio.pause();
+                updatePlayButton();
+                return;
+            }
+            // Auto-advance to next file
+            if (currentIndex < files.length - 1) {
+                loadFile(currentIndex + 1, 0);
+            } else {
+                saveProgress(true);
+                localStorage.removeItem('audiobook-now-playing');
+            }
+        });
+
+        audio.addEventListener('play', updatePlayButton);
+        audio.addEventListener('pause', () => {
+            updatePlayButton();
+            saveProgress();
+        });
+
+        function updatePlayButton() {
+            document.getElementById('play-btn').innerHTML =
+                audio.paused ? '&#9654;' : '&#9646;&#9646;';
+        }
+
+        // ── Controls ──
+
+        document.getElementById('play-btn').addEventListener('click', () => {
+            if (audio.paused) audio.play().catch(() => {});
+            else audio.pause();
+        });
+
+        document.getElementById('skip-back-btn').addEventListener('click', () => {
+            audio.currentTime = Math.max(0, audio.currentTime - skipAmount);
+        });
+
+        document.getElementById('skip-fwd-btn').addEventListener('click', () => {
+            audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + skipAmount);
+        });
+
+        // Prev/next buttons navigate chapters (not just files)
+        document.getElementById('prev-file-btn').addEventListener('click', () => goToPrevChapter());
+        document.getElementById('next-file-btn').addEventListener('click', () => goToNextChapter());
+
+        document.getElementById('seek-bar').addEventListener('input', (e) => {
+            if (audio.duration) {
+                audio.currentTime = (e.target.value / 100) * audio.duration;
+            }
+        });
+
+        document.getElementById('speed-select').addEventListener('change', (e) => {
+            audio.playbackRate = parseFloat(e.target.value);
+        });
+
+        document.getElementById('volume-slider').addEventListener('input', (e) => {
+            audio.volume = parseFloat(e.target.value);
+        });
+
+        document.getElementById('skip-amount-select').addEventListener('change', (e) => {
+            skipAmount = parseInt(e.target.value);
+            document.querySelectorAll('.skip-label').forEach(el => {
+                el.textContent = skipAmount + 's';
+            });
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === ' ') {
+                e.preventDefault();
+                if (audio.paused) audio.play().catch(() => {});
+                else audio.pause();
+            }
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                audio.currentTime = Math.max(0, audio.currentTime - skipAmount);
+            }
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + skipAmount);
+            }
+            // Ctrl+Left / Ctrl+Right for chapter navigation
+            if (e.key === 'ArrowLeft' && e.ctrlKey) {
+                e.preventDefault();
+                goToPrevChapter();
+            }
+            if (e.key === 'ArrowRight' && e.ctrlKey) {
+                e.preventDefault();
+                goToNextChapter();
+            }
+        });
+
+        // ── Mobile: chapters toggle ──
+
+        document.getElementById('chapters-toggle').addEventListener('click', () => {
+            const panel = document.getElementById('file-list-panel');
+            panel.classList.add('mobile-open');
+            document.getElementById('chapters-close').style.display = '';
+        });
+
+        document.getElementById('chapters-close').addEventListener('click', () => {
+            document.getElementById('file-list-panel').classList.remove('mobile-open');
+        });
+
+        // Close chapters panel when a chapter is clicked on mobile
+        document.getElementById('file-list').addEventListener('click', (e) => {
+            if (window.innerWidth <= 768) {
+                setTimeout(() => {
+                    document.getElementById('file-list-panel').classList.remove('mobile-open');
+                }, 150);
+            }
+        });
+
+        // ── Swipe gestures (mobile) ──
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.getElementById('player-area').addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        }, { passive: true });
+
+        document.getElementById('player-area').addEventListener('touchend', (e) => {
+            const dx = e.changedTouches[0].screenX - touchStartX;
+            const dy = e.changedTouches[0].screenY - touchStartY;
+
+            // Only trigger if horizontal swipe > 60px and more horizontal than vertical
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                if (dx > 0) {
+                    goToPrevChapter();
+                } else {
+                    goToNextChapter();
+                }
+            }
+        }, { passive: true });
+
+        // ── Save / restore progress ──
+
+        async function saveProgress(finished) {
+            if (!files.length) return;
+            try {
+                await fetch('/api/audiobook/progress', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        folder_path: folderPath,
+                        current_file: files[currentIndex].full_path,
+                        position: audio.currentTime || 0,
+                        playback_speed: audio.playbackRate,
+                        is_finished: !!finished,
+                    }),
+                });
+            } catch (err) {
+                console.error('Failed to save progress:', err);
+            }
+        }
+
+        window.addEventListener('beforeunload', () => saveProgress());
+
+        // ── Sleep timer ──
+
+        document.getElementById('sleep-btn').addEventListener('click', () => {
+            document.getElementById('sleep-modal').classList.add('show');
+            document.getElementById('sleep-cancel-timer').style.display =
+                (sleepTimer || sleepEndOfFile || sleepEndOfChapter) ? '' : 'none';
+        });
+
+        document.getElementById('sleep-close').addEventListener('click', () => {
+            document.getElementById('sleep-modal').classList.remove('show');
+        });
+
+        document.querySelectorAll('#sleep-modal button[data-mins]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mins = parseInt(btn.dataset.mins);
+                startSleepTimer(mins * 60);
+                document.getElementById('sleep-modal').classList.remove('show');
+            });
+        });
+
+        document.getElementById('sleep-end-file').addEventListener('click', () => {
+            sleepEndOfFile = true;
+            sleepEndOfChapter = false;
+            clearTimeout(sleepTimer);
+            sleepTimer = null;
+            document.getElementById('sleep-btn').classList.add('active');
+            document.getElementById('sleep-indicator').textContent = 'Sleep: end of current file';
+            document.getElementById('sleep-modal').classList.remove('show');
+        });
+
+        document.getElementById('sleep-end-chapter').addEventListener('click', () => {
+            sleepEndOfChapter = true;
+            sleepEndOfFile = false;
+            clearTimeout(sleepTimer);
+            sleepTimer = null;
+            document.getElementById('sleep-btn').classList.add('active');
+            document.getElementById('sleep-indicator').textContent = 'Sleep: end of current chapter';
+            document.getElementById('sleep-modal').classList.remove('show');
+        });
+
+        document.getElementById('sleep-cancel-timer').addEventListener('click', () => {
+            clearSleepTimer();
+            document.getElementById('sleep-modal').classList.remove('show');
+        });
+
+        function startSleepTimer(seconds) {
+            clearTimeout(sleepTimer);
+            sleepEndOfFile = false;
+            sleepEndOfChapter = false;
+            const endTime = Date.now() + seconds * 1000;
+            document.getElementById('sleep-btn').classList.add('active');
+
+            function updateIndicator() {
+                const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+                if (remaining <= 0) {
+                    audio.pause();
+                    clearSleepTimer();
+                    return;
+                }
+                document.getElementById('sleep-indicator').textContent =
+                    'Sleep in ' + formatTime(remaining);
+                sleepTimer = setTimeout(updateIndicator, 1000);
+            }
+            updateIndicator();
+        }
+
+        function clearSleepTimer() {
+            clearTimeout(sleepTimer);
+            sleepTimer = null;
+            sleepEndOfFile = false;
+            sleepEndOfChapter = false;
+            document.getElementById('sleep-btn').classList.remove('active');
+            document.getElementById('sleep-indicator').textContent = '';
+        }
+
+        // ── Bookmarks (right panel) ──
+
+        async function saveBookmarkAtCurrentPosition() {
+            if (!files.length) return;
+            try {
+                await fetch('/api/audiobook/bookmark', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        folder_path: folderPath,
+                        file_path: files[currentIndex].full_path,
+                        position: audio.currentTime || 0,
+                        note: '',
+                    }),
+                });
+                await refreshBookmarks();
+            } catch (err) {
+                console.error('Failed to add bookmark:', err);
+            }
+        }
+
+        let allBookmarks = []; // all bookmarks across all audiobooks
+
+        async function refreshBookmarks() {
+            // Fetch current book's bookmarks
+            const resp = await fetch(`/api/audiobook/progress?folder=${encodeURIComponent(folderPath)}`);
+            const data = await resp.json();
+            bookmarks = data.bookmarks || [];
+            // Fetch all bookmarks
+            try {
+                const allResp = await fetch('/api/audiobook/bookmarks/all');
+                const allData = await allResp.json();
+                allBookmarks = allData.bookmarks || [];
+            } catch (err) {
+                allBookmarks = bookmarks.map(b => ({ ...b, book_title: folderPath.split('/').pop(), file_name: b.file_path.split('/').pop().replace(/\.mp3$/i, '') }));
+            }
+            renderBookmarks();
+        }
+
+        // "Bookmark Current Position" button in panel header — prompt for description
+        document.getElementById('bookmark-now-btn').addEventListener('click', () => {
+            if (!files.length) return;
+            audio.pause();
+            showConfirm(
+                `Bookmark at ${formatTime(audio.currentTime || 0)}<br>Add a description?`,
+                [
+                    { label: 'Yes', primary: true, action: () => {
+                        showDescriptionPrompt();
+                    }},
+                    { label: 'No', action: () => {
+                        saveBookmarkAtCurrentPosition();
+                        audio.play().catch(() => {});
+                    }},
+                    { label: 'Cancel', action: () => {
+                        audio.play().catch(() => {});
+                    }},
+                ]
+            );
+        });
+
+        function showDescriptionPrompt() {
+            const dialog = document.getElementById('confirm-dialog');
+            document.getElementById('confirm-message').innerHTML = 'Enter bookmark description:';
+            const container = document.getElementById('confirm-buttons');
+            container.innerHTML = '';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = 'bm-desc-input';
+            input.placeholder = 'Description...';
+            input.style.cssText = 'width:100%;padding:8px;border:1px solid #0f3460;border-radius:4px;background:#1a1a2e;color:#e0e0e0;font-size:0.85rem;margin-bottom:12px;';
+            container.parentElement.insertBefore(input, container);
+            input.focus();
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save';
+            saveBtn.className = 'primary';
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+
+            async function doSave() {
+                const note = input.value.trim();
+                input.remove();
+                dialog.classList.remove('show');
+                await saveBookmarkWithNote(note);
+                audio.play().catch(() => {});
+            }
+
+            saveBtn.addEventListener('click', doSave);
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSave(); });
+
+            cancelBtn.addEventListener('click', () => {
+                input.remove();
+                dialog.classList.remove('show');
+                audio.play().catch(() => {});
+            });
+
+            container.appendChild(saveBtn);
+            container.appendChild(cancelBtn);
+            dialog.classList.add('show');
+        }
+
+        async function saveBookmarkWithNote(note) {
+            if (!files.length) return;
+            try {
+                await fetch('/api/audiobook/bookmark', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        folder_path: folderPath,
+                        file_path: files[currentIndex].full_path,
+                        position: audio.currentTime || 0,
+                        note: note || '',
+                    }),
+                });
+                await refreshBookmarks();
+            } catch (err) {
+                console.error('Failed to add bookmark:', err);
+            }
+        }
+
+        function hasBookmarkAtCurrentPosition() {
+            if (!files.length) return false;
+            const file = files[currentIndex].full_path;
+            const pos = audio.currentTime || 0;
+            // Consider "at current position" if within 5 seconds
+            return bookmarks.some(bm => bm.file_path === file && Math.abs(bm.position - pos) < 5);
+        }
+
+        function renderBookmarks() {
+            const ul = document.getElementById('bookmarks-list');
+            ul.innerHTML = '';
+
+            if (allBookmarks.length === 0) {
+                ul.innerHTML = '<div id="bookmarks-empty">No bookmarks yet</div>';
+                return;
+            }
+
+            // Group by book (folder_path)
+            const grouped = {};
+            for (const bm of allBookmarks) {
+                const key = bm.folder_path;
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(bm);
+            }
+
+            // Show current book first, then others
+            const keys = Object.keys(grouped).sort((a, b) => {
+                if (a === folderPath) return -1;
+                if (b === folderPath) return 1;
+                return a.localeCompare(b);
+            });
+
+            for (const key of keys) {
+                const isCurrentBook = key === folderPath;
+                const bookTitle = grouped[key][0].book_title || key.split('/').pop();
+
+                // Section header
+                const header = document.createElement('li');
+                header.className = 'bm-section';
+                header.textContent = bookTitle + (isCurrentBook ? ' (current)' : '');
+                ul.appendChild(header);
+
+                for (const bm of grouped[key]) {
+                    const li = document.createElement('li');
+                    if (isCurrentBook) li.className = 'current-book';
+                    const fileName = bm.file_name || bm.file_path.split('/').pop().replace(/\.mp3$/i, '');
+
+                    const savedDate = bm.created_at ? formatDate(bm.created_at) : '';
+
+                    li.innerHTML = `
+                        <div class="bm-info">
+                            <div class="bm-time">${formatTime(bm.position)}</div>
+                            <div class="bm-file">${escHtml(fileName)}</div>
+                            ${savedDate ? `<div class="bm-date">${savedDate}</div>` : ''}
+                            ${bm.note ? `<div class="bm-note">${escHtml(bm.note)}</div>` : ''}
+                        </div>
+                        <span class="bm-delete" title="Delete bookmark">x</span>
+                    `;
+
+                    li.querySelector('.bm-info').addEventListener('click', () => {
+                        if (isCurrentBook) {
+                            jumpToBookmark(bm);
+                        } else {
+                            // Navigate to that audiobook at the bookmarked position
+                            window.location.href = `/audiobook-player?folder=${encodeURIComponent(bm.folder_path)}&file=${encodeURIComponent(bm.file_path)}`;
+                        }
+                    });
+
+                    li.querySelector('.bm-delete').addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        try {
+                            await fetch(`/api/audiobook/bookmark/${bm.id}`, { method: 'DELETE' });
+                            allBookmarks = allBookmarks.filter(b => b.id !== bm.id);
+                            bookmarks = bookmarks.filter(b => b.id !== bm.id);
+                            renderBookmarks();
+                        } catch (err) {
+                            console.error('Failed to delete bookmark:', err);
+                        }
+                    });
+
+                    ul.appendChild(li);
+                }
+            }
+        }
+
+        // Resume from bookmark — ask to delete it
+        function jumpToBookmark(bm) {
+            showConfirm(
+                `Resume from ${formatTime(bm.position)}?<br>Delete this bookmark after resuming?`,
+                [
+                    { label: 'Yes, delete', primary: true, action: async () => {
+                        const fileIdx = files.findIndex(f => f.full_path === bm.file_path);
+                        if (fileIdx >= 0) {
+                            if (fileIdx !== currentIndex) loadFile(fileIdx, bm.position);
+                            else { audio.currentTime = bm.position; audio.play().catch(() => {}); }
+                        }
+                        try {
+                            await fetch(`/api/audiobook/bookmark/${bm.id}`, { method: 'DELETE' });
+                            bookmarks = bookmarks.filter(b => b.id !== bm.id);
+                            renderBookmarks();
+                        } catch (err) { console.error('Failed to delete bookmark:', err); }
+                    }},
+                    { label: 'No, keep', action: () => {
+                        const fileIdx = files.findIndex(f => f.full_path === bm.file_path);
+                        if (fileIdx >= 0) {
+                            if (fileIdx !== currentIndex) loadFile(fileIdx, bm.position);
+                            else { audio.currentTime = bm.position; audio.play().catch(() => {}); }
+                        }
+                    }},
+                    { label: 'Cancel', action: () => {} },
+                ]
+            );
+        }
+
+        // ── Confirm dialog helper ──
+
+        function showConfirm(message, buttons) {
+            const dialog = document.getElementById('confirm-dialog');
+            document.getElementById('confirm-message').innerHTML = message;
+            const container = document.getElementById('confirm-buttons');
+            container.innerHTML = '';
+            buttons.forEach(b => {
+                const btn = document.createElement('button');
+                btn.textContent = b.label;
+                if (b.primary) btn.className = 'primary';
+                btn.addEventListener('click', () => {
+                    dialog.classList.remove('show');
+                    if (b.action) b.action();
+                });
+                container.appendChild(btn);
+            });
+            dialog.classList.add('show');
+        }
+
+        // ── Back button with bookmark prompt ──
+
+        document.getElementById('back-btn').addEventListener('click', (e) => {
+            if (!files.length || hasBookmarkAtCurrentPosition()) return; // let default nav happen
+            e.preventDefault();
+            audio.pause();
+            showConfirm(
+                'Save a bookmark at the current position before leaving?',
+                [
+                    { label: 'Yes', primary: true, action: async () => {
+                        await saveBookmarkAtCurrentPosition();
+                        window.location.href = '/';
+                    }},
+                    { label: 'No', action: () => { window.location.href = '/'; }},
+                ]
+            );
+        });
+
+        // ── Mark Finished ──
+
+        let isFinished = false;
+
+        function updateFinishedButton() {
+            const btn = document.getElementById('finished-btn');
+            if (isFinished) {
+                btn.textContent = 'Unmark Finished';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = 'Mark Finished';
+                btn.classList.remove('active');
+            }
+        }
+
+        document.getElementById('finished-btn').addEventListener('click', async () => {
+            isFinished = !isFinished;
+            updateFinishedButton();
+            await saveProgress(isFinished);
+        });
+
+        // ── Helpers ──
+
+        function formatTime(secs) {
+            if (!secs || isNaN(secs)) return '0:00';
+            secs = Math.round(secs);
+            const h = Math.floor(secs / 3600);
+            const m = Math.floor((secs % 3600) / 60);
+            const s = secs % 60;
+            if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            return `${m}:${String(s).padStart(2, '0')}`;
+        }
+
+        function formatDate(epoch) {
+            const d = new Date(epoch * 1000);
+            const day = d.getDate();
+            const mon = d.toLocaleString('default', { month: 'short' });
+            const yr = d.getFullYear();
+            const h = d.getHours();
+            const m = String(d.getMinutes()).padStart(2, '0');
+            return `${day} ${mon} ${yr}, ${h}:${m}`;
+        }
+
+        function escHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        init();
+    </script>
+</body>
+</html>

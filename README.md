@@ -13,6 +13,15 @@ Search Wizard solves this by providing:
   - MP4, WebM, MOV via Synology VideoPlayer
   - MKV, AVI, WMV, FLV via built-in video player with FFmpeg transcoding
   - CBZ, CBR, CB7 via built-in comic reader with page navigation
+  - MP3 via built-in audiobook player with position saving
+- **Audiobook player** — full-featured player for MP3 audiobooks with:
+  - Auto-save position (never lose your place)
+  - Chapter navigation (embedded ID3 CHAP frames or per-file chapters)
+  - Bookmarks with notes
+  - Sleep timer (timed, end of file, end of chapter)
+  - Playback speed control (0.5x–3x)
+  - Library view with cover art, progress tracking, and series grouping
+  - Cross-device position sync (via server-side SQLite)
 - **Folder navigation** — jump to any result's location in Synology File Station
 - **Automated reindexing** so results stay current without manual intervention
 
@@ -29,6 +38,7 @@ Search Wizard solves this by providing:
 │  │  player.html │◄──────►│  uvicorn :8080          │  │
 │  │  reader.html │        │                         │  │
 │  │  epub-reader │        │                         │  │
+│  │  ab-player   │        │                         │  │
 │  │  app.js      │        │                         │  │
 │  │  style.css   │        │  ┌───────────────────┐  │  │
 │  └──────────────┘        │  │  SQLite + FTS5    │  │  │
@@ -72,6 +82,8 @@ Search Wizard solves this by providing:
 
 **Comic Reader** — Server-side extraction of CBZ (ZIP), CBR (RAR), and CB7 (7-Zip) comic archives using `unrar` and `p7zip`. Images are served as individual pages via API endpoints. The frontend provides a page-by-page reader with keyboard/click navigation, fit-to-width/height toggle, and auto-hiding toolbar. Extracted archives are cached (up to 5) for fast page turns.
 
+**Audiobook Player** — Full-featured MP3 audiobook player designed for long-form listening. Reads ID3 tags via mutagen for metadata (title, artist, album, track/disc numbers) and embedded CHAP frames for chapter markers. Files within a folder are ordered by disc number, track number, then natural filename sort. Progress is saved server-side in SQLite (auto-saves every 5 seconds, on pause, and on close) enabling cross-device sync. Features include: playback speed (0.5x–3x), skip forward/back (10/15/30s), chapter-aware navigation, manual bookmarks with notes, sleep timer, and a library view with cover art, progress bars, series grouping, and search/filter/sort.
+
 ### Search Strategy
 
 1. **FTS5 AND search** — All search tokens must appear (prefix matching enabled). This is tried first for precision.
@@ -103,6 +115,15 @@ Results are ranked using a composite score:
 | GET | `/api/file` | Serve a raw file from NAS (params: path) |
 | GET | `/api/comic/info` | Get comic page count (params: path) |
 | GET | `/api/comic/page/{n}` | Get a single comic page image (params: path) |
+| GET | `/audiobook-player` | Serve the audiobook player page |
+| GET | `/api/audiobooks` | List all audiobooks with metadata (params: sort, search) |
+| POST | `/api/audiobooks/refresh-meta` | Recompute cached metadata for all audiobook folders |
+| GET | `/api/audiobook/files` | Get ordered MP3 files with chapters (params: folder) |
+| GET | `/api/audiobook/progress` | Get saved progress and bookmarks (params: folder) |
+| PUT | `/api/audiobook/progress` | Save playback position |
+| POST | `/api/audiobook/bookmark` | Add a bookmark at current position |
+| DELETE | `/api/audiobook/bookmark/{id}` | Delete a bookmark |
+| GET | `/api/audiobook/cover` | Get cover art from MP3 ID3 tags (params: folder) |
 
 ### Project Structure
 
@@ -118,12 +139,14 @@ Nas_search/
 │   ├── scheduler.py        # APScheduler cron job
 │   ├── search.py           # FTS5 + fuzzy search logic
 │   ├── stream.py           # FFmpeg video transcoding and streaming
-│   └── comic.py            # Comic archive extraction and page serving
+│   ├── comic.py            # Comic archive extraction and page serving
+│   └── audiobook.py        # Audiobook API (files, progress, bookmarks, cover art)
 ├── frontend/
 │   ├── index.html          # Single-page search UI
 │   ├── player.html         # Video player page
 │   ├── reader.html         # Comic book reader
 │   ├── epub-reader.html    # Epub book reader
+│   ├── audiobook-player.html  # Audiobook player page
 │   ├── app.js              # All frontend logic (vanilla JS)
 │   ├── style.css           # Dark theme styles
 │   └── favicon.svg         # Browser tab icon
@@ -152,6 +175,7 @@ extensions:
   - mov
   - cbz
   - cbr
+  - mp3
 
 max_results: 100
 fuzzy_threshold: 80
@@ -175,7 +199,7 @@ Configuration can also be edited from the Settings modal in the web UI.
 
 ### Prerequisites
 
-- Synology NAS running DSM 7+
+- Synology NAS running DSM 7+ (tested on DS920+)
 - **Container Manager** installed (search for it in Package Center; older DSM versions call it "Docker")
 - SSH access enabled (Control Panel > Terminal & SNMP > Enable SSH service)
 - Your NAS IP address (visible in the browser address bar when accessing DSM)
@@ -260,7 +284,7 @@ SSH into the NAS and run:
 
 ```bash
 cd /volume1/docker/nas-search
-sudo docker-compose up -d --build
+sudo docker-compose down && sudo docker-compose up -d --build
 ```
 
 First build takes 2-3 minutes (downloads Python 3.11 base image, FFmpeg, unrar, and p7zip). Subsequent builds are faster.
@@ -274,10 +298,13 @@ Open `http://YOUR_NAS_IP:8080` in your browser. Click **Reindex** (bottom-right)
 Copy updated files to the NAS (Step 1), then rebuild:
 
 ```bash
-cd /volume1/docker/nas-search && sudo docker-compose up -d --build
+cd /volume1/docker/nas-search
+sudo docker-compose down && sudo docker-compose up -d --build
 ```
 
 A simple `docker restart` does **not** pick up file changes — you must rebuild with `--build`.
+
+**Note**: Synology Container Manager may send a "stopped unexpectedly" email when rebuilding, even with a clean `docker-compose down`. This is a Synology notification behavior — it treats any container removal as unexpected. To disable these alerts: open **Container Manager > Container > nas-search > Settings** and uncheck the restart alert option. Alternatively, disable the rule globally in **Control Panel > Notification > Rules**.
 
 ## Usage
 
@@ -291,9 +318,13 @@ A simple `docker restart` does **not** pick up file changes — you must rebuild
   - MP4, WebM, MOV open in Synology VideoPlayer (native browser playback)
   - MKV, AVI, WMV, FLV open in the built-in player (transcoded via FFmpeg)
   - CBZ, CBR, CB7 open in the built-in comic reader (server-side extraction)
+  - MP3 opens in the built-in audiobook player (position auto-saved)
+- **Audiobooks tab**: Switch to the Audiobooks tab to browse your library with cover art, progress bars, and series grouping. Filter by status (All / In Progress / Finished / Not Started), sort by title, author, recently played, duration, or series. Search within your audiobook library.
+- **Audiobook player**: Play/pause, seek, skip forward/back (10/15/30s), adjust speed (0.5x–3x). Navigate by chapter (embedded or per-file). Set a sleep timer. Mark books as finished. Progress syncs across devices automatically.
+- **Audiobook bookmarks**: A persistent bookmarks panel on the right side of the player shows all bookmarks across all audiobooks, grouped by book. Bookmark the current position with an optional description. When resuming from a bookmark, you're prompted to delete it. When navigating away without a bookmark, you're prompted to save one.
 - **Open the folder**: Click "Folder" to navigate to the file's location in Synology File Station.
-- **Pin folders**: Click "Pin" on a result to save that folder as a sidebar shortcut. Click "x" next to a pinned folder to remove it.
-- **Recent files**: Files you open are saved to a recent files list in the sidebar. Click the "x" to clear.
+- **Pin folders**: Click "Pin" on a result to save that folder as a sidebar shortcut. Remove individual pins with the "x" next to each, or clear all with the "x" in the header.
+- **Recent files**: Files you open are saved to a recent files list in the sidebar. Remove individual entries with the "x" next to each, or clear all with the "x" in the header.
 - **Reindex**: Click "Reindex" (bottom-right) to trigger a manual full scan.
 - **Settings**: Click "Settings" to modify indexed folders, file extensions, and the nightly reindex schedule.
 
@@ -349,6 +380,10 @@ Then restart: `sudo docker-compose restart`
 | Indexing seems stuck | Check logs: `sudo docker logs -f nas-search`. Large collections (500k+ files) can take 10-15 minutes on the first full scan. |
 | Container won't start after NAS reboot | The `restart: unless-stopped` policy handles this automatically. If not: `cd /volume1/docker/nas-search && sudo docker-compose up -d` |
 | Changes not showing after update | You must rebuild with `sudo docker-compose up -d --build`. A plain `docker restart` does not copy new files into the container. |
+| Audiobook not appearing in library | Ensure `mp3` is in the extensions list in `config.yml`. Reindex after adding it. MP3 files must be in a folder together (one folder = one audiobook). |
+| Audiobook progress not saving | Check browser console and server logs. The SQLite database must be writable. Progress auto-saves every 5 seconds. |
+| No cover art on audiobook cards | Cover art is extracted from ID3 APIC tags in the first MP3 file. Not all MP3 files have embedded cover art. |
+| Chapters not showing in player | Chapters come from embedded ID3 CHAP frames. If a file has no CHAP frames, the entire file is treated as one chapter. |
 
 ## Tech Stack
 
@@ -358,6 +393,7 @@ Then restart: `sudo docker-compose restart`
 - **Video streaming**: FFmpeg (remux H.264, transcode other codecs)
 - **Epub reader**: epub.js + JSZip (client-side rendering)
 - **Comic reader**: Server-side extraction with unrar-free and p7zip
+- **Audiobook metadata**: mutagen (MP3 ID3 tag reading, chapter extraction)
 - **Scheduling**: APScheduler
 - **Frontend**: Vanilla HTML, CSS, JavaScript (no build tools)
 - **Deployment**: Docker on Synology NAS

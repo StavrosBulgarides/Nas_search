@@ -74,6 +74,38 @@ def init_db():
                     files_removed INTEGER DEFAULT 0,
                     duration REAL
                 );
+
+                CREATE TABLE IF NOT EXISTS audiobook_progress (
+                    folder_path TEXT PRIMARY KEY,
+                    current_file TEXT NOT NULL,
+                    position REAL DEFAULT 0,
+                    playback_speed REAL DEFAULT 1.0,
+                    is_finished INTEGER DEFAULT 0,
+                    last_played REAL
+                );
+
+                CREATE TABLE IF NOT EXISTS audiobook_bookmarks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    folder_path TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    position REAL NOT NULL,
+                    note TEXT DEFAULT '',
+                    created_at REAL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_audiobook_bookmarks_folder
+                    ON audiobook_bookmarks(folder_path);
+
+                CREATE TABLE IF NOT EXISTS audiobook_meta (
+                    folder_path TEXT PRIMARY KEY,
+                    title TEXT DEFAULT '',
+                    author TEXT DEFAULT '',
+                    album TEXT DEFAULT '',
+                    series TEXT DEFAULT '',
+                    total_duration REAL DEFAULT 0,
+                    file_count INTEGER DEFAULT 0,
+                    cached_at REAL
+                );
             """)
 
             # Create triggers to keep FTS in sync
