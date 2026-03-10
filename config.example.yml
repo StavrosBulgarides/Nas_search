@@ -1,5 +1,8 @@
 indexed_folders:
-  Books: /mnt/nas/Books
+  Books: /mnt/nas/Stephen/Books
+  Health: /mnt/nas/Stephen/Health
+  Learn: /mnt/nas/Stephen/Learn
+  Magazines: /mnt/nas/Stephen/Magazines
   Movies: /mnt/nas/Movies
 
 extensions:

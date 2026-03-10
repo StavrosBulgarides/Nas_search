@@ -1,4 +1,47 @@
 const API = '';
+// ── Debug Log ──
+const _debugLines = [];
+function debugLog(msg) {
+    const ts = new Date().toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+    const line = `[${ts}] ${msg}`;
+    _debugLines.push(line);
+    if (_debugLines.length > 200) _debugLines.shift();
+    const el = document.getElementById('debug-log');
+    if (el) {
+        el.textContent = _debugLines.join('\n');
+        el.scrollTop = el.scrollHeight;
+    }
+    console.log('[DBG]', msg);
+}
+// Inject debug panel into page once DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    const panel = document.createElement('div');
+    panel.id = 'debug-panel';
+    panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong style="color:#e94560;font-size:0.7rem;">Debug Log</strong>
+            <div style="display:flex;gap:6px;">
+                <button id="debug-clear-btn" style="background:none;border:1px solid #555;color:#aaa;cursor:pointer;padding:2px 8px;font-size:0.7rem;display:none;">Clear</button>
+                <button id="debug-toggle-btn" style="background:none;border:1px solid #555;color:#aaa;cursor:pointer;padding:2px 8px;font-size:0.7rem;">Show</button>
+            </div>
+        </div>
+        <pre id="debug-log" style="margin:0;max-height:200px;overflow-y:auto;font-size:0.7rem;line-height:1.3;color:#aaa;white-space:pre-wrap;word-break:break-all;display:none;margin-top:4px;"></pre>
+    `;
+    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #333;padding:6px 12px;z-index:9999;font-family:monospace;';
+    document.body.appendChild(panel);
+    document.getElementById('debug-toggle-btn').addEventListener('click', () => {
+        const log = document.getElementById('debug-log');
+        const clearBtn = document.getElementById('debug-clear-btn');
+        if (log.style.display === 'none') { log.style.display = ''; clearBtn.style.display = ''; document.getElementById('debug-toggle-btn').textContent = 'Hide'; }
+        else { log.style.display = 'none'; clearBtn.style.display = 'none'; document.getElementById('debug-toggle-btn').textContent = 'Show'; }
+    });
+    document.getElementById('debug-clear-btn').addEventListener('click', () => {
+        _debugLines.length = 0;
+        document.getElementById('debug-log').textContent = '';
+    });
+    debugLog('App initialised');
+});
+
 let searchTimeout = null;
 let currentOffset = 0;
 let currentTotal = 0;
@@ -29,19 +72,33 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupEventListeners() {
     const searchInput = document.getElementById('search-input');
     searchInput.addEventListener('input', () => {
+        debugLog(`EVENT: search input changed -> "${searchInput.value}"`);
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => doSearch(false), 300);
     });
     searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
+            debugLog('EVENT: search Enter pressed');
             clearTimeout(searchTimeout);
             doSearch(false);
         }
     });
 
-    document.getElementById('folder-filter').addEventListener('change', () => doSearch(false));
-    document.getElementById('extension-filter').addEventListener('change', () => doSearch(false));
-    document.getElementById('fuzzy-toggle').addEventListener('change', () => doSearch(false));
+    document.getElementById('folder-filter').addEventListener('change', (e) => {
+        debugLog(`EVENT: folder filter changed -> "${e.target.value}"`);
+        clearTimeout(searchTimeout);
+        doSearch(false);
+    });
+    document.getElementById('extension-filter').addEventListener('change', (e) => {
+        debugLog(`EVENT: extension filter changed -> "${e.target.value}"`);
+        clearTimeout(searchTimeout);
+        doSearch(false);
+    });
+    document.getElementById('fuzzy-toggle').addEventListener('change', (e) => {
+        debugLog(`EVENT: fuzzy toggle changed -> ${e.target.checked}`);
+        clearTimeout(searchTimeout);
+        doSearch(false);
+    });
 
     document.getElementById('load-more-btn').addEventListener('click', () => doSearch(true));
 
@@ -87,20 +144,29 @@ function setupEventListeners() {
 
 // ── Search ──
 
+let searchId = 0;
+
 async function doSearch(loadMore) {
     const query = document.getElementById('search-input').value.trim();
-    if (!query) {
+    const folder = document.getElementById('folder-filter').value;
+    const extension = document.getElementById('extension-filter').value;
+
+    debugLog(`doSearch called: q="${query}" folder="${folder}" ext="${extension}" loadMore=${loadMore}`);
+
+    if (!query && !folder && !extension) {
+        debugLog('doSearch: no query/folder/ext -> clearing results');
         clearResults();
         return;
     }
+
+    const thisSearch = ++searchId;
+    debugLog(`doSearch: searchId=${thisSearch}`);
 
     if (!loadMore) {
         currentOffset = 0;
         currentQuery = query;
     }
 
-    const folder = document.getElementById('folder-filter').value;
-    const extension = document.getElementById('extension-filter').value;
     const fuzzy = document.getElementById('fuzzy-toggle').checked;
 
     const params = new URLSearchParams({
@@ -112,9 +178,22 @@ async function doSearch(loadMore) {
     if (folder) params.set('folder', folder);
     if (extension) params.set('extension', extension);
 
+    const url = `${API}/api/search?${params}`;
+    debugLog(`doSearch: fetching ${url}`);
+
     try {
-        const resp = await fetch(`${API}/api/search?${params}`);
+        const resp = await fetch(url);
+        debugLog(`doSearch: response status=${resp.status} (searchId=${thisSearch}, current=${searchId})`);
+        if (thisSearch !== searchId) {
+            debugLog(`doSearch: STALE response (thisSearch=${thisSearch} != searchId=${searchId}), discarding`);
+            return;
+        }
         const data = await resp.json();
+        debugLog(`doSearch: got ${data.results?.length ?? 0} results, total=${data.total}`);
+        if (thisSearch !== searchId) {
+            debugLog(`doSearch: STALE after json parse, discarding`);
+            return;
+        }
         currentTotal = data.total;
 
         if (!loadMore) {
@@ -122,21 +201,22 @@ async function doSearch(loadMore) {
         }
 
         if (data.results.length === 0 && currentOffset === 0) {
+            debugLog('doSearch: no results, showing empty state');
             showNoResults(fuzzy);
         } else {
             hideNoResults();
             renderResults(data.results);
             currentOffset += data.results.length;
+            debugLog(`doSearch: rendered ${data.results.length} results, offset now ${currentOffset}`);
         }
 
-        document.getElementById('results-info').textContent =
-            `${currentTotal} result${currentTotal !== 1 ? 's' : ''} for "${query}"` +
-            (fuzzy ? ' (fuzzy)' : '');
+        document.getElementById('results-info').textContent = '';
 
         const loadMoreBtn = document.getElementById('load-more-btn');
         loadMoreBtn.style.display = currentOffset < currentTotal ? '' : 'none';
 
     } catch (err) {
+        debugLog(`doSearch: ERROR ${err.message}`);
         console.error('Search failed:', err);
     }
 }

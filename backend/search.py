@@ -19,27 +19,31 @@ def search_files(
     limit: int = 20,
     offset: int = 0,
 ) -> Tuple[List[FileResult], int]:
-    if not query or not query.strip():
-        return [], 0
-
     config = get_config()
     max_results = config.get("max_results", 100)
     limit = min(limit, max_results)
     start_time = time.time()
 
     with get_db() as conn:
-        # Try FTS search first
-        results, total = _fts_search(conn, query, folder, extension, limit, offset)
+        # Filter-only search (no query text)
+        if not query or not query.strip():
+            if not folder and not extension:
+                return [], 0
+            results, total = _filter_search(conn, folder, extension, limit, offset)
+            search_type = "filter"
+        else:
+            # Try FTS search first
+            results, total = _fts_search(conn, query, folder, extension, limit, offset)
 
-        search_type = "fts"
+            search_type = "fts"
 
-        # Fall back to fuzzy if enabled and no results
-        if not results and fuzzy:
-            search_type = "fuzzy"
-            results, total = _fuzzy_search(
-                conn, query, folder, extension, limit, offset,
-                config.get("fuzzy_threshold", 80)
-            )
+            # Fall back to fuzzy if enabled and no results
+            if not results and fuzzy:
+                search_type = "fuzzy"
+                results, total = _fuzzy_search(
+                    conn, query, folder, extension, limit, offset,
+                    config.get("fuzzy_threshold", 80)
+                )
 
         elapsed_ms = (time.time() - start_time) * 1000
 
@@ -107,35 +111,24 @@ def _run_fts_query(conn, fts_terms, where_sql, params, limit, offset):
     folder_usage = get_folder_usage(conn)
     max_usage = max(folder_usage.values()) if folder_usage else 1
 
-    # Count total matches
-    count_sql = f"""
-        SELECT COUNT(*) FROM files_fts
-        JOIN files f ON f.id = files_fts.rowid
-        WHERE files_fts MATCH ? {where_sql}
-    """
-    try:
-        total = conn.execute(count_sql, [fts_terms] + params).fetchone()[0]
-    except Exception:
-        logger.exception("FTS count query failed: terms='%s' params=%s", fts_terms, params)
-        return [], 0
-
-    if total == 0:
-        return [], 0
-
-    # Fetch results with ranking
+    # Fetch results with ranking — get one extra to know if there are more
     now = time.time()
+    fetch_limit = limit + offset + 1
     search_sql = f"""
         SELECT f.*, -rank AS fts_score
         FROM files_fts
         JOIN files f ON f.id = files_fts.rowid
         WHERE files_fts MATCH ? {where_sql}
         ORDER BY -rank DESC
-        LIMIT ? OFFSET ?
+        LIMIT ?
     """
     try:
-        rows = conn.execute(search_sql, [fts_terms] + params + [limit * 3, 0]).fetchall()
+        rows = conn.execute(search_sql, [fts_terms] + params + [fetch_limit]).fetchall()
     except Exception:
         logger.exception("FTS search query failed: terms='%s' params=%s", fts_terms, params)
+        return [], 0
+
+    if not rows:
         return [], 0
 
     # Apply composite scoring
@@ -158,8 +151,51 @@ def _run_fts_query(conn, fts_terms, where_sql, params, limit, offset):
 
     # Sort by composite score and apply offset/limit
     results.sort(key=lambda r: r.score, reverse=True)
+    has_more = len(results) > offset + limit
     results = results[offset:offset + limit]
 
+    # Estimate total: if we got a full page, there are likely more
+    total = offset + limit + (1 if has_more else 0) if has_more else offset + len(results)
+
+    return results, total
+
+
+def _filter_search(conn, folder, extension, limit, offset):
+    """Search by folder/extension only (no query text)."""
+    where_clauses = []
+    params = []
+
+    if folder:
+        where_clauses.append("folder_path LIKE ?")
+        params.append(f"{folder}%")
+
+    if extension:
+        where_clauses.append("extension = ?")
+        params.append(extension.lower().lstrip("."))
+
+    where_sql = " AND ".join(where_clauses)
+
+    try:
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM files WHERE {where_sql}", params
+        ).fetchone()[0]
+    except Exception:
+        logger.exception("Filter count query failed")
+        return [], 0
+
+    if total == 0:
+        return [], 0
+
+    try:
+        rows = conn.execute(
+            f"SELECT * FROM files WHERE {where_sql} ORDER BY modified_date DESC LIMIT ? OFFSET ?",
+            params + [limit, offset],
+        ).fetchall()
+    except Exception:
+        logger.exception("Filter search query failed")
+        return [], 0
+
+    results = [FileResult(**dict(row), score=0) for row in rows]
     return results, total
 
 
