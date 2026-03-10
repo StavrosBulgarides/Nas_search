@@ -146,6 +146,11 @@ async def epub_reader():
     return FileResponse(str(frontend_dir / "epub-reader.html"))
 
 
+@app.get("/pdf-reader")
+async def pdf_reader():
+    return FileResponse(str(frontend_dir / "pdf-reader.html"))
+
+
 @app.get("/audiobook-player")
 async def audiobook_player():
     return FileResponse(str(frontend_dir / "audiobook-player.html"))
@@ -220,6 +225,128 @@ async def delete_epub_bookmark(bookmark_id: int):
         return {"status": "ok"}
     except Exception:
         logger.exception("Failed to delete epub bookmark %d", bookmark_id)
+        return JSONResponse(status_code=500, content={"detail": "Failed to delete bookmark"})
+
+
+# ── Comic Bookmarks ──
+
+@app.get("/api/comic/bookmarks")
+async def get_comic_bookmarks(file: Optional[str] = Query(None)):
+    """Get comic bookmarks, optionally filtered by file path."""
+    try:
+        with get_db() as conn:
+            if file:
+                rows = conn.execute(
+                    "SELECT * FROM comic_bookmarks WHERE file_path = ? ORDER BY created_at DESC",
+                    (file,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM comic_bookmarks ORDER BY created_at DESC"
+                ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["book_title"] = os.path.basename(d["file_path"])
+            for ext in ('.cbz', '.cbr', '.cb7'):
+                d["book_title"] = d["book_title"].replace(ext, '')
+            result.append(d)
+        return {"bookmarks": result}
+    except Exception:
+        logger.exception("Failed to get comic bookmarks")
+        return {"bookmarks": []}
+
+
+@app.post("/api/comic/bookmark")
+async def add_comic_bookmark(data: dict):
+    """Add a comic bookmark."""
+    try:
+        with get_db() as conn:
+            conn.execute("""
+                INSERT INTO comic_bookmarks (file_path, page, note, total_pages, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                data["file_path"],
+                data["page"],
+                data.get("note", ""),
+                data.get("total_pages", 0),
+                time.time(),
+            ))
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to add comic bookmark")
+        return JSONResponse(status_code=500, content={"detail": "Failed to add bookmark"})
+
+
+@app.delete("/api/comic/bookmark/{bookmark_id}")
+async def delete_comic_bookmark(bookmark_id: int):
+    """Delete a comic bookmark."""
+    try:
+        with get_db() as conn:
+            conn.execute("DELETE FROM comic_bookmarks WHERE id = ?", (bookmark_id,))
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to delete comic bookmark %d", bookmark_id)
+        return JSONResponse(status_code=500, content={"detail": "Failed to delete bookmark"})
+
+
+# ── PDF Bookmarks ──
+
+@app.get("/api/pdf/bookmarks")
+async def get_pdf_bookmarks(file: Optional[str] = Query(None)):
+    """Get PDF bookmarks, optionally filtered by file path."""
+    try:
+        with get_db() as conn:
+            if file:
+                rows = conn.execute(
+                    "SELECT * FROM pdf_bookmarks WHERE file_path = ? ORDER BY created_at DESC",
+                    (file,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM pdf_bookmarks ORDER BY created_at DESC"
+                ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["book_title"] = os.path.basename(d["file_path"]).replace(".pdf", "")
+            result.append(d)
+        return {"bookmarks": result}
+    except Exception:
+        logger.exception("Failed to get PDF bookmarks")
+        return {"bookmarks": []}
+
+
+@app.post("/api/pdf/bookmark")
+async def add_pdf_bookmark(data: dict):
+    """Add a PDF bookmark."""
+    try:
+        with get_db() as conn:
+            conn.execute("""
+                INSERT INTO pdf_bookmarks (file_path, page_number, note, total_pages, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                data["file_path"],
+                data["page_number"],
+                data.get("note", ""),
+                data.get("total_pages", 0),
+                time.time(),
+            ))
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to add PDF bookmark")
+        return JSONResponse(status_code=500, content={"detail": "Failed to add bookmark"})
+
+
+@app.delete("/api/pdf/bookmark/{bookmark_id}")
+async def delete_pdf_bookmark(bookmark_id: int):
+    """Delete a PDF bookmark."""
+    try:
+        with get_db() as conn:
+            conn.execute("DELETE FROM pdf_bookmarks WHERE id = ?", (bookmark_id,))
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to delete PDF bookmark %d", bookmark_id)
         return JSONResponse(status_code=500, content={"detail": "Failed to delete bookmark"})
 
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Wizard - Reader</title>
+    <title>Search Wizard - PDF Reader</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -25,13 +25,9 @@
             justify-content: space-between;
             z-index: 10;
             border-bottom: 1px solid #0f3460;
-            transition: opacity 0.3s;
             flex-shrink: 0;
             position: relative;
         }
-
-        #toolbar.autohide { opacity: 0; }
-        #toolbar.autohide:hover { opacity: 1; }
 
         #title {
             font-size: 0.85rem;
@@ -77,13 +73,25 @@
         #controls button:hover { border-color: #e94560; color: #e94560; }
         #controls button:disabled { opacity: 0.3; cursor: default; }
 
-        #fit-toggle {
+        #zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
             font-size: 0.8rem;
             color: #888;
-            cursor: pointer;
         }
 
-        #fit-toggle:hover { color: #e94560; }
+        #zoom-controls button {
+            padding: 4px 8px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        #zoom-controls button:hover { border-color: #e94560; color: #e94560; }
 
         #main-container {
             flex: 1;
@@ -96,26 +104,21 @@
             flex: 1;
             overflow-y: auto;
             display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
             padding: 16px 0;
+            background: #333;
         }
 
-        #viewer-wrap img {
-            max-width: 100%;
-            height: auto;
+        #viewer-wrap canvas {
             display: block;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
 
-        #viewer-wrap img.fit-width {
-            width: 100%;
-            max-width: 900px;
-        }
-
-        #viewer-wrap img.fit-height {
-            max-height: calc(100vh - 68px);
-            width: auto;
+        #single-page-canvas {
+            display: block;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
 
         #loading {
@@ -336,16 +339,21 @@
         <div id="controls">
             <button id="prev-btn" disabled>Prev</button>
             <button id="next-btn" disabled>Next</button>
-            <span id="fit-toggle" title="Toggle fit mode">Fit: Width</span>
+            <div id="zoom-controls">
+                <button id="zoom-out-btn" title="Zoom out">-</button>
+                <span id="zoom-level">100%</span>
+                <button id="zoom-in-btn" title="Zoom in">+</button>
+                <button id="zoom-fit-btn" title="Fit width">Fit</button>
+            </div>
             <a href="/" id="back-btn" style="font-size:0.85rem;">Back</a>
         </div>
     </div>
 
     <div id="main-container">
-        <div id="loading">Extracting comic...</div>
+        <div id="loading">Loading PDF...</div>
 
         <div id="viewer-wrap" style="display:none">
-            <img id="page-img" />
+            <canvas id="single-page-canvas"></canvas>
         </div>
 
         <div id="bookmarks-tab">Bookmarks</div>
@@ -363,7 +371,7 @@
     </div>
 
     <div id="error">
-        <p>Failed to load comic.</p>
+        <p>Failed to load PDF.</p>
         <p id="error-detail"></p>
         <p style="margin-top:12px"><a href="/">Back to search</a></p>
     </div>
@@ -375,84 +383,145 @@
         </div>
     </div>
 
-    <script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
+    <script type="module">
+        import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs';
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
+
         const params = new URLSearchParams(window.location.search);
         const filePath = params.get('path');
         const fileName = filePath ? filePath.split('/').pop() : 'Unknown';
-        const encodedPath = encodeURIComponent(filePath);
 
         document.getElementById('title').textContent = fileName;
         document.title = fileName + ' - Search Wizard';
 
+        let pdfDoc = null;
         let totalPages = 0;
-        let currentPage = 0;
-        let fitMode = 'width';
+        let currentPage = 1;
+        let currentScale = 1.5;
         let allBookmarks = [];
+        let rendering = false;
 
-        const img = document.getElementById('page-img');
+        const canvas = document.getElementById('single-page-canvas');
+        const ctx = canvas.getContext('2d');
         const prevBtn = document.getElementById('prev-btn');
         const nextBtn = document.getElementById('next-btn');
-        const fitToggle = document.getElementById('fit-toggle');
         const viewerWrap = document.getElementById('viewer-wrap');
 
-        function showPage(index) {
-            if (index < 0 || index >= totalPages) return;
-            currentPage = index;
-            img.src = `/api/comic/page/${currentPage}?path=${encodedPath}`;
-            img.className = fitMode === 'width' ? 'fit-width' : 'fit-height';
-            prevBtn.disabled = currentPage === 0;
-            nextBtn.disabled = currentPage === totalPages - 1;
-            document.getElementById('page-display').textContent = `Page ${currentPage + 1} / ${totalPages}`;
-            const pct = totalPages > 0 ? Math.round(((currentPage + 1) / totalPages) * 100) : 0;
-            document.getElementById('pct-display').textContent = pct + '%';
-            viewerWrap.scrollTo(0, 0);
+        // ── Page rendering ──
+
+        async function renderPage(pageNum) {
+            if (rendering) return;
+            rendering = true;
+
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({ scale: currentScale });
+
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                await page.render({
+                    canvasContext: ctx,
+                    viewport: viewport,
+                }).promise;
+
+                currentPage = pageNum;
+                prevBtn.disabled = currentPage <= 1;
+                nextBtn.disabled = currentPage >= totalPages;
+                document.getElementById('page-display').textContent = `Page ${currentPage} / ${totalPages}`;
+                const pct = totalPages > 0 ? Math.round((currentPage / totalPages) * 100) : 0;
+                document.getElementById('pct-display').textContent = pct + '%';
+                viewerWrap.scrollTo(0, 0);
+            } catch (err) {
+                console.error('Failed to render page:', err);
+            }
+
+            rendering = false;
         }
 
         function nextPage() {
-            if (currentPage < totalPages - 1) showPage(currentPage + 1);
+            if (currentPage < totalPages) renderPage(currentPage + 1);
         }
 
         function prevPage() {
-            if (currentPage > 0) showPage(currentPage - 1);
+            if (currentPage > 1) renderPage(currentPage - 1);
         }
+
+        // ── Zoom ──
+
+        function updateZoomDisplay() {
+            document.getElementById('zoom-level').textContent = Math.round(currentScale * 100 / 1.5) + '%';
+        }
+
+        document.getElementById('zoom-in-btn').addEventListener('click', () => {
+            currentScale = Math.min(currentScale + 0.25, 5);
+            updateZoomDisplay();
+            renderPage(currentPage);
+        });
+
+        document.getElementById('zoom-out-btn').addEventListener('click', () => {
+            currentScale = Math.max(currentScale - 0.25, 0.5);
+            updateZoomDisplay();
+            renderPage(currentPage);
+        });
+
+        document.getElementById('zoom-fit-btn').addEventListener('click', async () => {
+            if (!pdfDoc) return;
+            const page = await pdfDoc.getPage(currentPage);
+            const viewport = page.getViewport({ scale: 1 });
+            const containerWidth = viewerWrap.clientWidth - 40;
+            currentScale = containerWidth / viewport.width;
+            updateZoomDisplay();
+            renderPage(currentPage);
+        });
+
+        // ── Navigation controls ──
 
         prevBtn.addEventListener('click', (e) => { e.stopPropagation(); prevPage(); });
         nextBtn.addEventListener('click', (e) => { e.stopPropagation(); nextPage(); });
-
-        fitToggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            fitMode = fitMode === 'width' ? 'height' : 'width';
-            fitToggle.textContent = 'Fit: ' + (fitMode === 'width' ? 'Width' : 'Height');
-            img.className = fitMode === 'width' ? 'fit-width' : 'fit-height';
-        });
-
-        viewerWrap.addEventListener('click', (e) => {
-            const rect = viewerWrap.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            if (x < rect.width / 3) {
-                prevPage();
-            } else {
-                nextPage();
-            }
-        });
 
         document.addEventListener('keydown', (e) => {
             if (document.querySelector('.confirm-modal.show')) return;
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextPage(); }
             if (e.key === 'ArrowLeft') { e.preventDefault(); prevPage(); }
-            if (e.key === 'Home') { e.preventDefault(); showPage(0); }
-            if (e.key === 'End') { e.preventDefault(); showPage(totalPages - 1); }
+            if (e.key === 'Home') { e.preventDefault(); renderPage(1); }
+            if (e.key === 'End') { e.preventDefault(); renderPage(totalPages); }
+            if (e.key === '+' || e.key === '=') { e.preventDefault(); document.getElementById('zoom-in-btn').click(); }
+            if (e.key === '-') { e.preventDefault(); document.getElementById('zoom-out-btn').click(); }
         });
 
-        let hideTimeout;
-        function resetToolbarHide() {
-            const toolbar = document.getElementById('toolbar');
-            toolbar.classList.remove('autohide');
-            clearTimeout(hideTimeout);
-            hideTimeout = setTimeout(() => toolbar.classList.add('autohide'), 3000);
+        // ── Load PDF ──
+
+        async function loadPdf() {
+            if (!filePath) {
+                showError('No file path specified.');
+                return;
+            }
+
+            try {
+                const url = `/api/file?path=${encodeURIComponent(filePath)}`;
+                pdfDoc = await pdfjsLib.getDocument(url).promise;
+                totalPages = pdfDoc.numPages;
+
+                document.getElementById('loading').style.display = 'none';
+                viewerWrap.style.display = 'flex';
+
+                const startPage = parseInt(params.get('page')) || 1;
+                await renderPage(Math.min(Math.max(startPage, 1), totalPages));
+
+                // Fit width on initial load
+                document.getElementById('zoom-fit-btn').click();
+
+                await refreshBookmarks();
+
+            } catch (err) {
+                console.error('Failed to load PDF:', err);
+                showError(err.message);
+            }
         }
-        document.addEventListener('mousemove', resetToolbarHide);
 
         function showError(detail) {
             document.getElementById('loading').style.display = 'none';
@@ -460,41 +529,11 @@
             if (detail) document.getElementById('error-detail').textContent = detail;
         }
 
-        async function loadComic() {
-            if (!filePath) {
-                showError('No file path specified.');
-                return;
-            }
-
-            try {
-                const resp = await fetch(`/api/comic/info?path=${encodedPath}`);
-                if (!resp.ok) {
-                    const err = await resp.json().catch(() => ({}));
-                    throw new Error(err.detail || `Server returned ${resp.status}`);
-                }
-
-                const data = await resp.json();
-                totalPages = data.pages;
-
-                document.getElementById('loading').style.display = 'none';
-                viewerWrap.style.display = 'flex';
-                const startPage = parseInt(params.get('page')) || 0;
-                showPage(Math.min(startPage, totalPages - 1));
-                resetToolbarHide();
-
-                await refreshBookmarks();
-
-            } catch (err) {
-                console.error('Failed to load comic:', err);
-                showError(err.message);
-            }
-        }
-
         // ── Bookmarks ──
 
         async function refreshBookmarks() {
             try {
-                const resp = await fetch('/api/comic/bookmarks');
+                const resp = await fetch('/api/pdf/bookmarks');
                 const data = await resp.json();
                 allBookmarks = data.bookmarks || [];
             } catch (err) {
@@ -505,12 +544,12 @@
 
         async function saveBookmarkFromSnapshot(snapshot, note) {
             try {
-                await fetch('/api/comic/bookmark', {
+                await fetch('/api/pdf/bookmark', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         file_path: filePath,
-                        page: snapshot.page,
+                        page_number: snapshot.page,
                         note: note || '',
                         total_pages: totalPages,
                     }),
@@ -522,13 +561,13 @@
         }
 
         function hasBookmarkNearCurrentPage() {
-            return allBookmarks.some(bm => bm.file_path === filePath && bm.page === currentPage);
+            return allBookmarks.some(bm => bm.file_path === filePath && bm.page_number === currentPage);
         }
 
         document.getElementById('bookmark-now-btn').addEventListener('click', () => {
             const snapshot = { page: currentPage };
             showConfirm(
-                `Bookmark page ${currentPage + 1} / ${totalPages}<br>Add a description?`,
+                `Bookmark page ${currentPage} / ${totalPages}<br>Add a description?`,
                 [
                     { label: 'Yes', primary: true, action: () => showDescriptionPrompt(snapshot) },
                     { label: 'No', action: () => saveBookmarkFromSnapshot(snapshot, '') },
@@ -621,7 +660,7 @@
 
                     li.innerHTML = `
                         <div class="bm-info">
-                            <div class="bm-page">Page ${bm.page + 1} / ${tp}</div>
+                            <div class="bm-page">Page ${bm.page_number} / ${tp}</div>
                             <div class="bm-file">${escHtml(bmFileName)}</div>
                             ${savedDate ? `<div class="bm-date">${savedDate}</div>` : ''}
                             ${bm.note ? `<div class="bm-note">${escHtml(bm.note)}</div>` : ''}
@@ -633,14 +672,14 @@
                         if (isCurrentBook) {
                             jumpToBookmark(bm);
                         } else {
-                            window.location.href = `/reader?path=${encodeURIComponent(bm.file_path)}&page=${bm.page}`;
+                            window.location.href = `/pdf-reader?path=${encodeURIComponent(bm.file_path)}&page=${bm.page_number}`;
                         }
                     });
 
                     li.querySelector('.bm-delete').addEventListener('click', async (e) => {
                         e.stopPropagation();
                         try {
-                            await fetch(`/api/comic/bookmark/${bm.id}`, { method: 'DELETE' });
+                            await fetch(`/api/pdf/bookmark/${bm.id}`, { method: 'DELETE' });
                             allBookmarks = allBookmarks.filter(b => b.id !== bm.id);
                             renderBookmarks();
                         } catch (err) {
@@ -655,17 +694,17 @@
 
         function jumpToBookmark(bm) {
             showConfirm(
-                `Go to page ${bm.page + 1}?<br>Delete this bookmark after jumping?`,
+                `Go to page ${bm.page_number}?<br>Delete this bookmark after jumping?`,
                 [
                     { label: 'Yes, delete', primary: true, action: async () => {
-                        showPage(bm.page);
+                        await renderPage(bm.page_number);
                         try {
-                            await fetch(`/api/comic/bookmark/${bm.id}`, { method: 'DELETE' });
+                            await fetch(`/api/pdf/bookmark/${bm.id}`, { method: 'DELETE' });
                             allBookmarks = allBookmarks.filter(b => b.id !== bm.id);
                             renderBookmarks();
                         } catch (err) { console.error(err); }
                     }},
-                    { label: 'No, keep', action: () => showPage(bm.page) },
+                    { label: 'No, keep', action: () => renderPage(bm.page_number) },
                     { label: 'Cancel', action: () => {} },
                 ]
             );
@@ -734,7 +773,7 @@
             return div.innerHTML;
         }
 
-        loadComic();
+        loadPdf();
     </script>
 </body>
 </html>

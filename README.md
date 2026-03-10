@@ -9,7 +9,7 @@ Search Wizard solves this by providing:
 - **Folder filtering** to narrow results to specific collections
 - **Direct file opening** — launch files in the appropriate viewer based on type:
   - Epub via built-in reader (epub.js) — far faster than Synology's native PDFViewer
-  - PDF via Synology PDFViewer
+  - PDF via built-in reader (PDF.js) with page navigation and zoom
   - MP4, WebM, MOV via Synology VideoPlayer
   - MKV, AVI, WMV, FLV via built-in video player with FFmpeg transcoding
   - CBZ, CBR, CB7 via built-in comic reader with page navigation
@@ -37,6 +37,7 @@ Search Wizard solves this by providing:
 │  │  index.html  │  HTTP  │  FastAPI (Python)       │  │
 │  │  player.html │◄──────►│  uvicorn :8080          │  │
 │  │  reader.html │        │                         │  │
+│  │  pdf-reader  │        │                         │  │
 │  │  epub-reader │        │                         │  │
 │  │  ab-player   │        │                         │  │
 │  │  app.js      │        │                         │  │
@@ -80,6 +81,8 @@ Search Wizard solves this by providing:
 
 **Epub Reader** — Client-side epub rendering using epub.js. Replaces Synology's native PDFViewer for epub files, which is painfully slow. Features chapter navigation, adjustable font size, dark theme, reading position saved in localStorage, and a book-width page layout.
 
+**PDF Reader** — Client-side PDF rendering using Mozilla's PDF.js (loaded via CDN). Provides a page-by-page viewer with zoom controls (in/out/fit-width), keyboard navigation (arrow keys, +/-, Home/End), and a collapsible bookmarks panel. Bookmarks are stored server-side in SQLite for cross-device sync. The bookmark workflow matches the other readers: optional description prompt, jump-to-bookmark with delete confirmation, and back-button save prompt.
+
 **Comic Reader** — Server-side extraction of CBZ (ZIP), CBR (RAR), and CB7 (7-Zip) comic archives using `unrar` and `p7zip`. Images are served as individual pages via API endpoints. The frontend provides a page-by-page reader with keyboard/click navigation, fit-to-width/height toggle, and auto-hiding toolbar. Extracted archives are cached (up to 5) for fast page turns.
 
 **Audiobook Player** — Full-featured MP3 audiobook player designed for long-form listening. Reads ID3 tags via mutagen for metadata (title, artist, album, track/disc numbers) and embedded CHAP frames for chapter markers. Files within a folder are ordered by disc number, track number, then natural filename sort. Progress is saved server-side in SQLite (auto-saves every 5 seconds, on pause, and on close) enabling cross-device sync. Features include: playback speed (0.5x–3x), skip forward/back (10/15/30s), chapter-aware navigation, manual bookmarks with notes, sleep timer, and a library view with cover art, progress bars, series grouping, and search/filter/sort.
@@ -111,8 +114,12 @@ Results are ranked using a composite score:
 | GET | `/api/config` | Get current configuration |
 | PUT | `/api/config` | Update configuration |
 | GET | `/api/stream` | Stream a video file via FFmpeg (params: path) |
+| GET | `/pdf-reader` | Serve the PDF reader page |
 | GET | `/epub-reader` | Serve the epub reader page |
 | GET | `/api/file` | Serve a raw file from NAS (params: path) |
+| GET | `/api/pdf/bookmarks` | Get PDF bookmarks (optional param: file) |
+| POST | `/api/pdf/bookmark` | Add a PDF bookmark |
+| DELETE | `/api/pdf/bookmark/{id}` | Delete a PDF bookmark |
 | GET | `/api/comic/info` | Get comic page count (params: path) |
 | GET | `/api/comic/page/{n}` | Get a single comic page image (params: path) |
 | GET | `/audiobook-player` | Serve the audiobook player page |
@@ -145,6 +152,7 @@ Nas_search/
 │   ├── index.html          # Single-page search UI
 │   ├── player.html         # Video player page
 │   ├── reader.html         # Comic book reader
+│   ├── pdf-reader.html     # PDF reader
 │   ├── epub-reader.html    # Epub book reader
 │   ├── audiobook-player.html  # Audiobook player page
 │   ├── app.js              # All frontend logic (vanilla JS)
@@ -314,13 +322,14 @@ A simple `docker restart` does **not** pick up file changes — you must rebuild
 - **Fuzzy search**: Tick the "Fuzzy" checkbox when you're unsure of exact spelling.
 - **Open a file**: Click "Open" to launch the file in the appropriate viewer:
   - Epub opens in the built-in reader (chapter nav, font size, reading position saved)
-  - PDF opens in Synology PDFViewer
+  - PDF opens in the built-in reader (page nav, zoom, bookmarks)
   - MP4, WebM, MOV open in Synology VideoPlayer (native browser playback)
   - MKV, AVI, WMV, FLV open in the built-in player (transcoded via FFmpeg)
   - CBZ, CBR, CB7 open in the built-in comic reader (server-side extraction)
   - MP3 opens in the built-in audiobook player (position auto-saved)
 - **Audiobooks tab**: Switch to the Audiobooks tab to browse your library with cover art, progress bars, and series grouping. Filter by status (All / In Progress / Finished / Not Started), sort by title, author, recently played, duration, or series. Search within your audiobook library.
 - **Audiobook player**: Play/pause, seek, skip forward/back (10/15/30s), adjust speed (0.5x–3x). Navigate by chapter (embedded or per-file). Set a sleep timer. Mark books as finished. Progress syncs across devices automatically.
+- **Bookmarks** (PDF, epub, comic, audiobook): All readers share the same bookmark workflow. A collapsible panel on the right shows all bookmarks across all files of that type, grouped by file. Bookmark the current position with an optional description. When jumping to a bookmark, you're prompted to delete it. When navigating away without a bookmark near your current position, you're prompted to save one. Bookmarks are stored server-side in SQLite for cross-device sync.
 - **Audiobook bookmarks**: A persistent bookmarks panel on the right side of the player shows all bookmarks across all audiobooks, grouped by book. Bookmark the current position with an optional description. When resuming from a bookmark, you're prompted to delete it. When navigating away without a bookmark, you're prompted to save one.
 - **Open the folder**: Click "Folder" to navigate to the file's location in Synology File Station.
 - **Pin folders**: Click "Pin" on a result to save that folder as a sidebar shortcut. Remove individual pins with the "x" next to each, or clear all with the "x" in the header.
@@ -391,6 +400,7 @@ Then restart: `sudo docker-compose restart`
 - **Database**: SQLite with FTS5 and WAL journal mode
 - **Fuzzy search**: rapidfuzz (Levenshtein distance)
 - **Video streaming**: FFmpeg (remux H.264, transcode other codecs)
+- **PDF reader**: PDF.js (client-side rendering via CDN)
 - **Epub reader**: epub.js + JSZip (client-side rendering)
 - **Comic reader**: Server-side extraction with unrar-free and p7zip
 - **Audiobook metadata**: mutagen (MP3 ID3 tag reading, chapter extraction)
