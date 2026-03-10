@@ -29,10 +29,10 @@ Search Wizard solves this by providing:
 
 ```
 ┌───────────────────────────────────────────────────────┐
-│                    Docker Container                    │
+│                    Docker Container                   │
 │                                                       │
 │  ┌──────────────┐        ┌─────────────────────────┐  │
-│  │   Frontend    │        │       Backend           │  │
+│  │   Frontend   │        │       Backend           │  │
 │  │              │        │                         │  │
 │  │  index.html  │  HTTP  │  FastAPI (Python)       │  │
 │  │  player.html │◄──────►│  uvicorn :8080          │  │
