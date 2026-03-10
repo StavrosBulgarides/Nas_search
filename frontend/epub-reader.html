@@ -27,6 +27,7 @@
             justify-content: space-between;
             border-bottom: 1px solid #0f3460;
             flex-shrink: 0;
+            position: relative;
         }
 
         #title {
@@ -36,6 +37,22 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             max-width: 30%;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        #page-info {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: #e0e0e0;
+            white-space: nowrap;
+        }
+
+        #page-info .page-pct {
+            color: #e94560;
+            margin-left: 8px;
         }
 
         #controls {
@@ -82,6 +99,12 @@
             color: #e94560;
             text-decoration: none;
             font-size: 0.85rem;
+        }
+
+        #main-container {
+            flex: 1;
+            display: flex;
+            min-height: 0;
         }
 
         #reader-container {
@@ -140,11 +163,209 @@
             font-size: 0.85rem;
             margin-top: 8px;
         }
+
+        /* Bookmarks panel */
+        #bookmarks-panel {
+            width: 380px;
+            border-left: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: width 0.2s;
+        }
+
+        #bookmarks-panel.collapsed {
+            width: 0;
+            overflow: hidden;
+            border-left: none;
+        }
+
+        #bookmarks-panel-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid #0f3460;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: #888;
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #bookmark-now-btn {
+            padding: 3px 10px;
+            border: 1px solid #e94560;
+            border-radius: 4px;
+            background: #e94560;
+            color: white;
+            cursor: pointer;
+            font-size: 0.75rem;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        #bookmark-now-btn:hover { background: #c73650; }
+
+        #bookmarks-collapse-btn {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0 4px;
+        }
+
+        #bookmarks-collapse-btn:hover { color: #e94560; }
+
+        #bookmarks-list {
+            flex: 1;
+            overflow-y: auto;
+            list-style: none;
+        }
+
+        #bookmarks-list li {
+            padding: 8px 14px;
+            border-bottom: 1px solid #1a1a3e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        #bookmarks-list li:hover { background: #16213e; }
+        #bookmarks-list .bm-info { flex: 1; min-width: 0; }
+        #bookmarks-list .bm-label { color: #e0e0e0; font-size: 0.8rem; }
+        #bookmarks-list .bm-pct { color: #e94560; font-size: 0.75rem; }
+        #bookmarks-list .bm-note { color: #888; font-size: 0.75rem; margin-top: 2px; }
+        #bookmarks-list .bm-file { color: #666; font-size: 0.7rem; }
+        #bookmarks-list .bm-date { color: #555; font-size: 0.65rem; }
+
+        #bookmarks-list .bm-book {
+            color: #e94560;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-bottom: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #bookmarks-list li.current-book .bm-book {
+            color: #c45aff;
+        }
+
+        #bookmarks-list .bm-section {
+            padding: 8px 14px 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #666;
+            letter-spacing: 0.3px;
+            border-bottom: 1px solid #0f3460;
+            cursor: default;
+        }
+
+        #bookmarks-list .bm-section:hover { background: none; }
+
+        #bookmarks-list .bm-delete {
+            color: #666;
+            cursor: pointer;
+            padding: 4px 8px;
+            flex-shrink: 0;
+        }
+
+        #bookmarks-list .bm-delete:hover { color: #e94560; }
+
+        #bookmarks-empty {
+            padding: 20px 14px;
+            color: #666;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        /* Confirm dialog */
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 60;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-modal.show { display: flex; }
+
+        .confirm-modal .modal-box {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 24px;
+            width: 340px;
+            text-align: center;
+        }
+
+        .confirm-modal .modal-box p {
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .confirm-modal .modal-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .confirm-modal .modal-buttons button {
+            padding: 8px 20px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .confirm-modal .modal-buttons button:hover { border-color: #e94560; color: #e94560; }
+        .confirm-modal .modal-buttons button.primary { background: #e94560; border-color: #e94560; color: white; }
+        .confirm-modal .modal-buttons button.primary:hover { background: #c73650; }
+
+        /* Bookmark toggle tab (shown when panel collapsed) */
+        #bookmarks-tab {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            writing-mode: vertical-rl;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-right: none;
+            border-radius: 4px 0 0 4px;
+            padding: 10px 6px;
+            cursor: pointer;
+            color: #888;
+            font-size: 0.75rem;
+            z-index: 6;
+            letter-spacing: 0.5px;
+        }
+
+        #bookmarks-tab:hover { color: #e94560; border-color: #e94560; }
+
+        @media (max-width: 768px) {
+            #bookmarks-panel { display: none; }
+            #bookmarks-tab { display: none; }
+        }
     </style>
 </head>
 <body>
     <div id="toolbar">
         <div id="title"></div>
+        <div id="page-info">
+            <span id="page-display">-- / --</span>
+            <span class="page-pct" id="progress-display">0%</span>
+        </div>
         <div id="controls">
             <button id="prev-btn" title="Previous page">Prev</button>
             <select id="chapter-select"></select>
@@ -154,22 +375,42 @@
             <span id="font-size-display">100%</span>
             <button id="font-up" title="Increase font size">A+</button>
             <span style="color:#0f3460">|</span>
-            <span id="progress-display">--</span>
-            <a href="/" class="back-link">Back</a>
+            <a href="/" class="back-link" id="back-btn">Back</a>
         </div>
     </div>
 
-    <div id="reader-container">
-        <div id="loading">Loading book...</div>
-        <div id="viewer"></div>
-        <div id="prev-zone"></div>
-        <div id="next-zone"></div>
+    <div id="main-container">
+        <div id="reader-container">
+            <div id="loading">Loading book...</div>
+            <div id="viewer"></div>
+            <div id="prev-zone"></div>
+            <div id="next-zone"></div>
+            <div id="bookmarks-tab">Bookmarks</div>
+        </div>
+
+        <div id="bookmarks-panel">
+            <div id="bookmarks-panel-header">
+                <span>Bookmarks</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button id="bookmark-now-btn">Bookmark This Page</button>
+                    <button id="bookmarks-collapse-btn" title="Collapse">&raquo;</button>
+                </div>
+            </div>
+            <ul id="bookmarks-list"></ul>
+        </div>
     </div>
 
     <div id="error">
         <p>Failed to load book.</p>
         <p id="error-detail"></p>
         <p style="margin-top:12px"><a href="/" style="color:#e94560;text-decoration:none;">Back to search</a></p>
+    </div>
+
+    <div id="confirm-dialog" class="confirm-modal">
+        <div class="modal-box">
+            <p id="confirm-message"></p>
+            <div class="modal-buttons" id="confirm-buttons"></div>
+        </div>
     </div>
 
     <script>
@@ -183,6 +424,7 @@
         let book = null;
         let rendition = null;
         let fontSize = 100;
+        let allBookmarks = [];
 
         const storageKey = 'epub-pos:' + filePath;
 
@@ -194,11 +436,16 @@
         }
 
         function updateProgress() {
-            if (!rendition || !rendition.location) return;
-            const loc = rendition.location;
-            if (loc.start && loc.start.percentage !== undefined) {
-                const pct = Math.round(loc.start.percentage * 100);
-                document.getElementById('progress-display').textContent = pct + '%';
+            // Called after locations generate; triggers a re-render via relocated
+            if (rendition && rendition.location && rendition.location.start) {
+                const loc = rendition.location.start;
+                if (book && book.locations && book.locations.length() > 0 && loc.cfi) {
+                    const currentPage = book.locations.locationFromCfi(loc.cfi);
+                    const total = book.locations.length();
+                    document.getElementById('page-display').textContent = `Page ${currentPage + 1} / ${total}`;
+                    const pct = Math.round(book.locations.percentageFromCfi(loc.cfi) * 100);
+                    document.getElementById('progress-display').textContent = pct + '%';
+                }
             }
         }
 
@@ -212,6 +459,29 @@
 
         function loadPosition() {
             return localStorage.getItem(storageKey);
+        }
+
+        function getCurrentPercentage() {
+            if (!rendition || !rendition.location) return 0;
+            const loc = rendition.location;
+            if (book && book.locations && book.locations.length() > 0 && loc.start && loc.start.cfi) {
+                return Math.round(book.locations.percentageFromCfi(loc.start.cfi) * 100);
+            }
+            return loc.start ? Math.round((loc.start.percentage || 0) * 100) : 0;
+        }
+
+        function getCurrentCfi() {
+            if (!rendition || !rendition.location) return '';
+            const loc = rendition.location;
+            return (loc.start && loc.start.cfi) ? loc.start.cfi : '';
+        }
+
+        function getCurrentChapterLabel() {
+            const select = document.getElementById('chapter-select');
+            if (select.selectedIndex >= 0) {
+                return select.options[select.selectedIndex].textContent;
+            }
+            return '';
         }
 
         async function loadBook() {
@@ -281,9 +551,35 @@
                     select.style.display = 'none';
                 }
 
+                // Generate locations for accurate page counting
+                let totalPages = 0;
+                book.locations.generate(1600).then(() => {
+                    totalPages = book.locations.length();
+                    updateProgress();
+                });
+
                 // Track location changes
                 rendition.on('relocated', (location) => {
-                    updateProgress();
+                    // Update percentage and page numbers
+                    if (location.start) {
+                        // Global page from locations
+                        if (totalPages > 0) {
+                            const currentPage = book.locations.locationFromCfi(location.start.cfi);
+                            document.getElementById('page-display').textContent =
+                                `Page ${currentPage + 1} / ${totalPages}`;
+                        } else if (location.start.displayed) {
+                            // Fallback to per-chapter pages while locations generate
+                            document.getElementById('page-display').textContent =
+                                `Page ${location.start.displayed.page} / ${location.start.displayed.total}`;
+                        }
+
+                        // Percentage
+                        const pct = totalPages > 0
+                            ? Math.round((book.locations.percentageFromCfi(location.start.cfi)) * 100)
+                            : (location.start.percentage !== undefined ? Math.round(location.start.percentage * 100) : 0);
+                        document.getElementById('progress-display').textContent = pct + '%';
+                    }
+
                     savePosition();
 
                     // Update chapter dropdown
@@ -301,6 +597,9 @@
 
                 // Keyboard in iframe
                 rendition.on('keydown', handleKeydown);
+
+                // Load bookmarks
+                await refreshBookmarks();
 
             } catch (err) {
                 console.error('Failed to load book:', err);
@@ -339,6 +638,9 @@
 
         // Keyboard navigation
         function handleKeydown(e) {
+            // Don't navigate when dialog is open or input is focused
+            if (document.querySelector('.confirm-modal.show')) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goNext(); }
             if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); }
         }
@@ -353,6 +655,301 @@
                 rendition.resize(w, container.clientHeight);
             }
         });
+
+        // ── Bookmarks ──
+
+        async function refreshBookmarks() {
+            try {
+                const resp = await fetch('/api/epub/bookmarks');
+                const data = await resp.json();
+                allBookmarks = data.bookmarks || [];
+            } catch (err) {
+                allBookmarks = [];
+            }
+            renderBookmarks();
+        }
+
+        async function saveBookmarkWithNote(note) {
+            const cfi = getCurrentCfi();
+            if (!cfi) return;
+            try {
+                await fetch('/api/epub/bookmark', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        file_path: filePath,
+                        cfi: cfi,
+                        label: getCurrentChapterLabel(),
+                        note: note || '',
+                        percentage: getCurrentPercentage(),
+                    }),
+                });
+                await refreshBookmarks();
+            } catch (err) {
+                console.error('Failed to add bookmark:', err);
+            }
+        }
+
+        function hasBookmarkNearCurrentPosition() {
+            const pct = getCurrentPercentage();
+            return allBookmarks.some(bm => bm.file_path === filePath && Math.abs(bm.percentage - pct) < 2);
+        }
+
+        // Bookmark this page button
+        document.getElementById('bookmark-now-btn').addEventListener('click', () => {
+            // Capture position NOW before any dialogs
+            const snapshot = {
+                cfi: getCurrentCfi(),
+                label: getCurrentChapterLabel(),
+                percentage: getCurrentPercentage(),
+            };
+            showConfirm(
+                `Bookmark at ${snapshot.percentage}%<br>Add a description?`,
+                [
+                    { label: 'Yes', primary: true, action: () => showDescriptionPrompt(snapshot) },
+                    { label: 'No', action: () => saveBookmarkFromSnapshot(snapshot, '') },
+                    { label: 'Cancel', action: () => {} },
+                ]
+            );
+        });
+
+        async function saveBookmarkFromSnapshot(snapshot, note) {
+            if (!snapshot.cfi) return;
+            try {
+                await fetch('/api/epub/bookmark', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        file_path: filePath,
+                        cfi: snapshot.cfi,
+                        label: snapshot.label,
+                        note: note || '',
+                        percentage: snapshot.percentage,
+                    }),
+                });
+                await refreshBookmarks();
+            } catch (err) {
+                console.error('Failed to add bookmark:', err);
+            }
+        }
+
+        function showDescriptionPrompt(snapshot) {
+            const dialog = document.getElementById('confirm-dialog');
+            document.getElementById('confirm-message').innerHTML = 'Enter bookmark description:';
+            const container = document.getElementById('confirm-buttons');
+            container.innerHTML = '';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'Description...';
+            input.style.cssText = 'width:100%;padding:8px;border:1px solid #0f3460;border-radius:4px;background:#1a1a2e;color:#e0e0e0;font-size:0.85rem;margin-bottom:12px;';
+            // Stop keyboard events from reaching epub.js
+            input.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') doSave(); });
+            input.addEventListener('keyup', (e) => e.stopPropagation());
+            input.addEventListener('keypress', (e) => e.stopPropagation());
+            container.parentElement.insertBefore(input, container);
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save';
+            saveBtn.className = 'primary';
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+
+            async function doSave() {
+                const note = input.value.trim();
+                input.remove();
+                dialog.classList.remove('show');
+                await saveBookmarkFromSnapshot(snapshot, note);
+            }
+
+            saveBtn.addEventListener('click', doSave);
+
+            cancelBtn.addEventListener('click', () => {
+                input.remove();
+                dialog.classList.remove('show');
+            });
+
+            container.appendChild(saveBtn);
+            container.appendChild(cancelBtn);
+            dialog.classList.add('show');
+            setTimeout(() => input.focus(), 50);
+        }
+
+        function renderBookmarks() {
+            const ul = document.getElementById('bookmarks-list');
+            ul.innerHTML = '';
+
+            if (allBookmarks.length === 0) {
+                ul.innerHTML = '<div id="bookmarks-empty">No bookmarks yet</div>';
+                return;
+            }
+
+            // Group by book (file_path)
+            const grouped = {};
+            for (const bm of allBookmarks) {
+                const key = bm.file_path;
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(bm);
+            }
+
+            // Current book first
+            const keys = Object.keys(grouped).sort((a, b) => {
+                if (a === filePath) return -1;
+                if (b === filePath) return 1;
+                return a.localeCompare(b);
+            });
+
+            for (const key of keys) {
+                const isCurrentBook = key === filePath;
+                const bookTitle = grouped[key][0].book_title || key.split('/').pop().replace('.epub', '');
+
+                const header = document.createElement('li');
+                header.className = 'bm-section';
+                header.textContent = bookTitle + (isCurrentBook ? ' (current)' : '');
+                ul.appendChild(header);
+
+                for (const bm of grouped[key]) {
+                    const li = document.createElement('li');
+                    if (isCurrentBook) li.className = 'current-book';
+
+                    const savedDate = bm.created_at ? formatDate(bm.created_at) : '';
+
+                    li.innerHTML = `
+                        <div class="bm-info">
+                            <div class="bm-pct">${bm.percentage}%</div>
+                            ${bm.label ? `<div class="bm-label">${escHtml(bm.label)}</div>` : ''}
+                            ${savedDate ? `<div class="bm-date">${savedDate}</div>` : ''}
+                            ${bm.note ? `<div class="bm-note">${escHtml(bm.note)}</div>` : ''}
+                        </div>
+                        <span class="bm-delete" title="Delete bookmark">x</span>
+                    `;
+
+                    li.querySelector('.bm-info').addEventListener('click', () => {
+                        if (isCurrentBook) {
+                            jumpToBookmark(bm);
+                        } else {
+                            window.location.href = `/epub-reader?path=${encodeURIComponent(bm.file_path)}`;
+                        }
+                    });
+
+                    li.querySelector('.bm-delete').addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        try {
+                            await fetch(`/api/epub/bookmark/${bm.id}`, { method: 'DELETE' });
+                            allBookmarks = allBookmarks.filter(b => b.id !== bm.id);
+                            renderBookmarks();
+                        } catch (err) {
+                            console.error('Failed to delete bookmark:', err);
+                        }
+                    });
+
+                    ul.appendChild(li);
+                }
+            }
+        }
+
+        function jumpToBookmark(bm) {
+            showConfirm(
+                `Go to ${bm.percentage}%?<br>Delete this bookmark after jumping?`,
+                [
+                    { label: 'Yes, delete', primary: true, action: async () => {
+                        if (rendition) rendition.display(bm.cfi);
+                        try {
+                            await fetch(`/api/epub/bookmark/${bm.id}`, { method: 'DELETE' });
+                            allBookmarks = allBookmarks.filter(b => b.id !== bm.id);
+                            renderBookmarks();
+                        } catch (err) { console.error(err); }
+                    }},
+                    { label: 'No, keep', action: () => {
+                        if (rendition) rendition.display(bm.cfi);
+                    }},
+                    { label: 'Cancel', action: () => {} },
+                ]
+            );
+        }
+
+        // ── Back button with bookmark prompt ──
+
+        document.getElementById('back-btn').addEventListener('click', (e) => {
+            if (!rendition || hasBookmarkNearCurrentPosition()) return;
+            e.preventDefault();
+            showConfirm(
+                'Save a bookmark at the current position before leaving?',
+                [
+                    { label: 'Yes', primary: true, action: async () => {
+                        await saveBookmarkWithNote('');
+                        window.location.href = '/';
+                    }},
+                    { label: 'No', action: () => { window.location.href = '/'; }},
+                ]
+            );
+        });
+
+        // ── Collapse/expand bookmarks panel ──
+
+        document.getElementById('bookmarks-collapse-btn').addEventListener('click', () => {
+            document.getElementById('bookmarks-panel').classList.add('collapsed');
+            document.getElementById('bookmarks-tab').style.display = 'block';
+            // Resize reader to fill space
+            if (rendition) {
+                setTimeout(() => {
+                    const container = document.getElementById('reader-container');
+                    const w = Math.min(container.clientWidth, 700);
+                    rendition.resize(w, container.clientHeight);
+                }, 250);
+            }
+        });
+
+        document.getElementById('bookmarks-tab').addEventListener('click', () => {
+            document.getElementById('bookmarks-panel').classList.remove('collapsed');
+            document.getElementById('bookmarks-tab').style.display = 'none';
+            if (rendition) {
+                setTimeout(() => {
+                    const container = document.getElementById('reader-container');
+                    const w = Math.min(container.clientWidth, 700);
+                    rendition.resize(w, container.clientHeight);
+                }, 250);
+            }
+        });
+
+        // ── Confirm dialog helper ──
+
+        function showConfirm(message, buttons) {
+            const dialog = document.getElementById('confirm-dialog');
+            document.getElementById('confirm-message').innerHTML = message;
+            const container = document.getElementById('confirm-buttons');
+            container.innerHTML = '';
+            buttons.forEach(b => {
+                const btn = document.createElement('button');
+                btn.textContent = b.label;
+                if (b.primary) btn.className = 'primary';
+                btn.addEventListener('click', () => {
+                    dialog.classList.remove('show');
+                    if (b.action) b.action();
+                });
+                container.appendChild(btn);
+            });
+            dialog.classList.add('show');
+        }
+
+        // ── Helpers ──
+
+        function formatDate(epoch) {
+            const d = new Date(epoch * 1000);
+            const day = d.getDate();
+            const mon = d.toLocaleString('default', { month: 'short' });
+            const yr = d.getFullYear();
+            const h = d.getHours();
+            const m = String(d.getMinutes()).padStart(2, '0');
+            return `${day} ${mon} ${yr}, ${h}:${m}`;
+        }
+
+        function escHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
 
         loadBook();
     </script>

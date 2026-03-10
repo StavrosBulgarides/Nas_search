@@ -63,6 +63,7 @@
             flex: 1;
             display: flex;
             min-height: 0;
+            position: relative;
         }
 
         /* File list sidebar */
@@ -448,6 +449,44 @@
 
         #bookmarks-list .bm-section:hover { background: none; }
 
+        #bookmarks-panel.collapsed {
+            width: 0;
+            overflow: hidden;
+            border-left: none;
+        }
+
+        #bookmarks-collapse-btn {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0 4px;
+        }
+
+        #bookmarks-collapse-btn:hover { color: #e94560; }
+
+        #bookmarks-tab {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            writing-mode: vertical-rl;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-right: none;
+            border-radius: 4px 0 0 4px;
+            padding: 10px 6px;
+            cursor: pointer;
+            color: #888;
+            font-size: 0.75rem;
+            z-index: 6;
+            letter-spacing: 0.5px;
+        }
+
+        #bookmarks-tab:hover { color: #e94560; border-color: #e94560; }
+
         #bookmarks-empty {
             padding: 20px 14px;
             color: #666;
@@ -600,6 +639,7 @@
             #player-area { padding: 20px; }
             #cover-container { width: 180px; height: 180px; }
             #bookmarks-panel { display: none; }
+            #bookmarks-tab { display: none !important; }
 
             #file-list-header {
                 display: flex;
@@ -703,10 +743,14 @@
         <div id="bookmarks-panel">
             <div id="bookmarks-panel-header">
                 <span>Bookmarks</span>
-                <button id="bookmark-now-btn">Bookmark Current Position</button>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button id="bookmark-now-btn">Bookmark Current Position</button>
+                    <button id="bookmarks-collapse-btn" title="Collapse">&raquo;</button>
+                </div>
             </div>
             <ul id="bookmarks-list"></ul>
         </div>
+        <div id="bookmarks-tab">Bookmarks</div>
     </div>
 
     <!-- Sleep Timer Modal -->
@@ -1407,7 +1451,6 @@
             input.placeholder = 'Description...';
             input.style.cssText = 'width:100%;padding:8px;border:1px solid #0f3460;border-radius:4px;background:#1a1a2e;color:#e0e0e0;font-size:0.85rem;margin-bottom:12px;';
             container.parentElement.insertBefore(input, container);
-            input.focus();
 
             const saveBtn = document.createElement('button');
             saveBtn.textContent = 'Save';
@@ -1436,6 +1479,7 @@
             container.appendChild(saveBtn);
             container.appendChild(cancelBtn);
             dialog.classList.add('show');
+            setTimeout(() => input.focus(), 50);
         }
 
         async function saveBookmarkWithNote(note) {
@@ -1657,6 +1701,18 @@
             div.textContent = str;
             return div.innerHTML;
         }
+
+        // ── Collapse/expand bookmarks panel ──
+
+        document.getElementById('bookmarks-collapse-btn').addEventListener('click', () => {
+            document.getElementById('bookmarks-panel').classList.add('collapsed');
+            document.getElementById('bookmarks-tab').style.display = 'block';
+        });
+
+        document.getElementById('bookmarks-tab').addEventListener('click', () => {
+            document.getElementById('bookmarks-panel').classList.remove('collapsed');
+            document.getElementById('bookmarks-tab').style.display = 'none';
+        });
 
         init();
     </script>

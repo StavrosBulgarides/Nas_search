@@ -162,6 +162,67 @@ async def api_file(path: str = Query(..., description="Container file path")):
     return FileResponse(real, filename=os.path.basename(real))
 
 
+# ── Epub Bookmarks ──
+
+@app.get("/api/epub/bookmarks")
+async def get_epub_bookmarks(file: Optional[str] = Query(None)):
+    """Get epub bookmarks, optionally filtered by file path."""
+    try:
+        with get_db() as conn:
+            if file:
+                rows = conn.execute(
+                    "SELECT * FROM epub_bookmarks WHERE file_path = ? ORDER BY created_at DESC",
+                    (file,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM epub_bookmarks ORDER BY created_at DESC"
+                ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["book_title"] = os.path.basename(d["file_path"]).replace(".epub", "")
+            result.append(d)
+        return {"bookmarks": result}
+    except Exception:
+        logger.exception("Failed to get epub bookmarks")
+        return {"bookmarks": []}
+
+
+@app.post("/api/epub/bookmark")
+async def add_epub_bookmark(data: dict):
+    """Add an epub bookmark."""
+    try:
+        with get_db() as conn:
+            conn.execute("""
+                INSERT INTO epub_bookmarks (file_path, cfi, label, note, percentage, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                data["file_path"],
+                data["cfi"],
+                data.get("label", ""),
+                data.get("note", ""),
+                data.get("percentage", 0),
+                time.time(),
+            ))
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to add epub bookmark")
+        return JSONResponse(status_code=500, content={"detail": "Failed to add bookmark"})
+
+
+@app.delete("/api/epub/bookmark/{bookmark_id}")
+async def delete_epub_bookmark(bookmark_id: int):
+    """Delete an epub bookmark."""
+    try:
+        with get_db() as conn:
+            conn.execute("DELETE FROM epub_bookmarks WHERE id = ?", (bookmark_id,))
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to delete epub bookmark %d", bookmark_id)
+        return JSONResponse(status_code=500, content={"detail": "Failed to delete bookmark"})
+
+
 @app.get("/api/search")
 async def api_search(
     q: str = Query("", description="Search query"),

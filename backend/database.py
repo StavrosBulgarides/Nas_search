@@ -96,6 +96,19 @@ def init_db():
                 CREATE INDEX IF NOT EXISTS idx_audiobook_bookmarks_folder
                     ON audiobook_bookmarks(folder_path);
 
+                CREATE TABLE IF NOT EXISTS epub_bookmarks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_path TEXT NOT NULL,
+                    cfi TEXT NOT NULL,
+                    label TEXT DEFAULT '',
+                    note TEXT DEFAULT '',
+                    percentage REAL DEFAULT 0,
+                    created_at REAL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_epub_bookmarks_file
+                    ON epub_bookmarks(file_path);
+
                 CREATE TABLE IF NOT EXISTS audiobook_meta (
                     folder_path TEXT PRIMARY KEY,
                     title TEXT DEFAULT '',
