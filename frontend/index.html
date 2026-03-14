@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search Wizard</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=4">
 </head>
 <body>
     <header>
@@ -45,6 +45,7 @@
         </section>
 
         <div id="content-area">
+            <button id="mobile-sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('mobile-visible')">Pinned &amp; Recent</button>
             <aside id="sidebar">
                 <div id="pinned-folders">
                     <h3>Pinned Folders <span id="clear-pinned-btn" title="Clear all pinned folders">x</span></h3>
@@ -64,7 +65,6 @@
                             <th class="col-filename">Filename</th>
                             <th class="col-folder">Folder</th>
                             <th class="col-size">Size</th>
-                            <th class="col-date">Modified</th>
                             <th class="col-actions">Actions</th>
                         </tr>
                     </thead>
@@ -139,6 +139,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=3"></script>
 </body>
 </html>

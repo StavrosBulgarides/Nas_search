@@ -214,25 +214,46 @@ Configuration can also be edited from the Settings modal in the web UI.
 
 ### Step 1: Copy project files to the NAS
 
-From your terminal:
-
-```bash
-rsync -av -e "ssh -p YOUR_SSH_PORT" --exclude='.venv' --exclude='data' --exclude='__pycache__' --exclude='.git' /path/to/Nas_search/ "YOUR_NAS_USER@YOUR_NAS_IP:/volume1/docker/nas-search/"
-```
-
-Replace the placeholders with your own values. If your SSH port is the default 22, you can omit `-e "ssh -p ..."`.
-
-If rsync fails (some Synology setups don't support it), use this alternative — run a temporary HTTP server on your local machine:
+**1. Start a temporary file server** on your development machine:
 
 ```bash
 cd /path/to/Nas_search && python3 -m http.server 9999
 ```
 
-Then SSH into the NAS and download individual files with wget:
+**2. SSH into the NAS** and create the project directory:
 
 ```bash
+sudo mkdir -p /volume1/docker/nas-search/frontend /volume1/docker/nas-search/backend
 cd /volume1/docker/nas-search
-sudo wget -O filename http://YOUR_LOCAL_IP:9999/filename
+```
+
+**3. Download all project files** with wget:
+
+```bash
+# Frontend
+for f in index.html player.html reader.html pdf-reader.html epub-reader.html audiobook-player.html app.js style.css favicon.svg; do
+  sudo wget -O frontend/$f http://YOUR_LOCAL_IP:9999/frontend/$f
+done
+
+# Backend
+for f in __init__.py config.py database.py indexer.py main.py models.py scheduler.py search.py stream.py comic.py audiobook.py; do
+  sudo wget -O backend/$f http://YOUR_LOCAL_IP:9999/backend/$f
+done
+
+# Root files
+for f in Dockerfile docker-compose.yml requirements.txt config.example.yml; do
+  sudo wget -O $f http://YOUR_LOCAL_IP:9999/$f
+done
+```
+
+Replace `YOUR_LOCAL_IP` with your development machine's IP (e.g. `192.168.1.119`).
+
+**4. Stop the file server** on your development machine (`Ctrl+C`).
+
+**Alternative**: If rsync works on your NAS, you can use it instead:
+
+```bash
+rsync -av -e "ssh -p YOUR_SSH_PORT" --exclude='.venv' --exclude='data' --exclude='__pycache__' --exclude='.git' /path/to/Nas_search/ "YOUR_NAS_USER@YOUR_NAS_IP:/volume1/docker/nas-search/"
 ```
 
 ### Step 2: Configure volume mounts
@@ -303,7 +324,37 @@ Open `http://YOUR_NAS_IP:8080` in your browser. Click **Reindex** (bottom-right)
 
 ### Updating after code changes
 
-Copy updated files to the NAS (Step 1), then rebuild:
+**1. Start a temporary file server** on your development machine:
+
+```bash
+cd /path/to/Nas_search && python3 -m http.server 9999
+```
+
+**2. SSH into the NAS** and download the changed files with wget:
+
+```bash
+cd /volume1/docker/nas-search
+sudo wget -O frontend/pdf-reader.html http://YOUR_LOCAL_IP:9999/frontend/pdf-reader.html
+sudo wget -O frontend/app.js http://YOUR_LOCAL_IP:9999/frontend/app.js
+```
+
+Only download the files you actually changed. Common paths:
+
+| What changed | File to download |
+|---|---|
+| Search UI or styling | `frontend/index.html`, `frontend/style.css`, `frontend/app.js` |
+| PDF reader | `frontend/pdf-reader.html` |
+| Epub reader | `frontend/epub-reader.html` |
+| Comic reader | `frontend/reader.html` |
+| Audiobook player | `frontend/audiobook-player.html` |
+| Video player | `frontend/player.html` |
+| Backend code | `backend/main.py`, `backend/search.py`, etc. |
+| Dependencies | `requirements.txt` |
+| Docker config | `Dockerfile`, `docker-compose.yml` |
+
+**3. Stop the file server** on your development machine (`Ctrl+C`).
+
+**4. Rebuild and restart** on the NAS:
 
 ```bash
 cd /volume1/docker/nas-search

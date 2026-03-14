@@ -228,7 +228,6 @@ function renderResults(results) {
 
         const fileStationUrl = buildFileStationUrl(file.folder_path);
         const openFileUrl = buildOpenFileUrl(file.full_path, file.extension);
-        const modified = formatDate(file.modified_date);
         const size = formatSize(file.size);
 
         // Shorten folder display to last 3 segments
@@ -238,7 +237,6 @@ function renderResults(results) {
             <td class="filename-cell" title="${escHtml(file.full_path)}">${escHtml(file.filename)}</td>
             <td class="folder-cell" title="${escHtml(file.folder_path)}">${escHtml(folderDisplay)}</td>
             <td class="size-cell">${size}</td>
-            <td class="date-cell">${modified}</td>
             <td class="actions-cell">
                 <a href="${openFileUrl}" target="_blank" class="open-link">Open</a>
                 <a href="${fileStationUrl}" target="_blank" class="folder-link">Folder</a>

@@ -12,7 +12,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Query, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 from backend.config import get_config, load_config, save_config, DB_PATH
 from backend.database import init_db, get_db, get_file_count, get_last_index_log
@@ -128,32 +128,50 @@ app.mount("/static", StaticFiles(directory=str(frontend_dir)), name="static")
 
 @app.get("/")
 async def index():
-    return FileResponse(str(frontend_dir / "index.html"))
+    return FileResponse(
+        str(frontend_dir / "index.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 @app.get("/player")
 async def player():
-    return FileResponse(str(frontend_dir / "player.html"))
+    return FileResponse(
+        str(frontend_dir / "player.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 @app.get("/reader")
 async def reader():
-    return FileResponse(str(frontend_dir / "reader.html"))
+    return FileResponse(
+        str(frontend_dir / "reader.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 @app.get("/epub-reader")
 async def epub_reader():
-    return FileResponse(str(frontend_dir / "epub-reader.html"))
+    return FileResponse(
+        str(frontend_dir / "epub-reader.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 @app.get("/pdf-reader")
 async def pdf_reader():
-    return FileResponse(str(frontend_dir / "pdf-reader.html"))
+    return FileResponse(
+        str(frontend_dir / "pdf-reader.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 @app.get("/audiobook-player")
 async def audiobook_player():
-    return FileResponse(str(frontend_dir / "audiobook-player.html"))
+    return FileResponse(
+        str(frontend_dir / "audiobook-player.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 @app.get("/api/file")

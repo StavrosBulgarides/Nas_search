@@ -30,7 +30,7 @@
         }
 
         #title {
-            font-size: 0.85rem;
+            font-size: 1rem;
             color: #888;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -44,7 +44,7 @@
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.85rem;
+            font-size: 1rem;
             color: #e0e0e0;
             white-space: nowrap;
         }
@@ -60,24 +60,11 @@
             gap: 12px;
         }
 
-        #controls button {
-            padding: 6px 14px;
-            border: 1px solid #0f3460;
-            border-radius: 4px;
-            background: #1a1a2e;
-            color: #e0e0e0;
-            cursor: pointer;
-            font-size: 0.85rem;
-        }
-
-        #controls button:hover { border-color: #e94560; color: #e94560; }
-        #controls button:disabled { opacity: 0.3; cursor: default; }
-
         #zoom-controls {
             display: flex;
             align-items: center;
             gap: 4px;
-            font-size: 0.8rem;
+            font-size: 0.95rem;
             color: #888;
         }
 
@@ -88,7 +75,7 @@
             background: #1a1a2e;
             color: #e0e0e0;
             cursor: pointer;
-            font-size: 0.85rem;
+            font-size: 1rem;
         }
 
         #zoom-controls button:hover { border-color: #e94560; color: #e94560; }
@@ -108,6 +95,7 @@
             align-items: center;
             padding: 16px 0;
             background: #333;
+            outline: none;
         }
 
         #viewer-wrap canvas {
@@ -166,7 +154,7 @@
         #bookmarks-panel-header {
             padding: 10px 14px;
             border-bottom: 1px solid #0f3460;
-            font-size: 0.8rem;
+            font-size: 1rem;
             text-transform: uppercase;
             color: #888;
             letter-spacing: 0.5px;
@@ -176,13 +164,13 @@
         }
 
         #bookmark-now-btn {
-            padding: 3px 10px;
+            padding: 5px 12px;
             border: 1px solid #e94560;
             border-radius: 4px;
             background: #e94560;
             color: white;
             cursor: pointer;
-            font-size: 0.75rem;
+            font-size: 0.9rem;
             text-transform: none;
             letter-spacing: 0;
         }
@@ -212,20 +200,20 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.8rem;
+            font-size: 0.95rem;
             cursor: pointer;
         }
 
         #bookmarks-list li:hover { background: #16213e; }
         #bookmarks-list .bm-info { flex: 1; min-width: 0; }
-        #bookmarks-list .bm-page { color: #e94560; font-size: 0.8rem; }
-        #bookmarks-list .bm-file { color: #666; font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        #bookmarks-list .bm-note { color: #888; font-size: 0.75rem; margin-top: 2px; }
-        #bookmarks-list .bm-date { color: #555; font-size: 0.65rem; }
+        #bookmarks-list .bm-page { color: #e94560; font-size: 0.95rem; }
+        #bookmarks-list .bm-file { color: #666; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #bookmarks-list .bm-note { color: #888; font-size: 0.9rem; margin-top: 2px; }
+        #bookmarks-list .bm-date { color: #555; font-size: 0.8rem; }
 
         #bookmarks-list .bm-section {
             padding: 8px 14px 4px;
-            font-size: 0.7rem;
+            font-size: 0.85rem;
             text-transform: uppercase;
             color: #666;
             letter-spacing: 0.3px;
@@ -247,7 +235,7 @@
         #bookmarks-empty {
             padding: 20px 14px;
             color: #666;
-            font-size: 0.8rem;
+            font-size: 0.95rem;
             text-align: center;
         }
 
@@ -265,10 +253,10 @@
             border: 1px solid #0f3460;
             border-right: none;
             border-radius: 4px 0 0 4px;
-            padding: 10px 6px;
+            padding: 14px 8px;
             cursor: pointer;
             color: #888;
-            font-size: 0.75rem;
+            font-size: 1rem;
             z-index: 6;
             letter-spacing: 0.5px;
         }
@@ -326,6 +314,20 @@
         @media (max-width: 768px) {
             #bookmarks-panel { display: none; }
             #bookmarks-tab { display: none !important; }
+
+            #title { display: none; }
+
+            #page-info-center {
+                position: static;
+                transform: none;
+                font-size: 0.95rem;
+            }
+
+            #toolbar { padding: 6px 10px; gap: 8px; }
+
+            #zoom-controls button { padding: 4px 6px; font-size: 0.9rem; }
+            #zoom-level { font-size: 0.85rem; }
+            #zoom-fit-btn { display: none; }
         }
     </style>
 </head>
@@ -337,28 +339,26 @@
             <span class="page-pct" id="pct-display">0%</span>
         </div>
         <div id="controls">
-            <button id="prev-btn" disabled>Prev</button>
-            <button id="next-btn" disabled>Next</button>
             <div id="zoom-controls">
                 <button id="zoom-out-btn" title="Zoom out">-</button>
                 <span id="zoom-level">100%</span>
                 <button id="zoom-in-btn" title="Zoom in">+</button>
                 <button id="zoom-fit-btn" title="Fit width">Fit</button>
             </div>
-            <a href="/" id="back-btn" style="font-size:0.85rem;">Back</a>
+            <a href="/" id="back-btn" style="font-size:1rem;">Back</a>
         </div>
     </div>
 
     <div id="main-container">
         <div id="loading">Loading PDF...</div>
 
-        <div id="viewer-wrap" style="display:none">
+        <div id="viewer-wrap" style="display:none" tabindex="0">
             <canvas id="single-page-canvas"></canvas>
         </div>
 
-        <div id="bookmarks-tab">Bookmarks</div>
+        <div id="bookmarks-tab" style="display:block">Bookmarks</div>
 
-        <div id="bookmarks-panel">
+        <div id="bookmarks-panel" class="collapsed">
             <div id="bookmarks-panel-header">
                 <span>Bookmarks</span>
                 <div style="display:flex;gap:8px;align-items:center;">
@@ -405,8 +405,6 @@
 
         const canvas = document.getElementById('single-page-canvas');
         const ctx = canvas.getContext('2d');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
         const viewerWrap = document.getElementById('viewer-wrap');
 
         // ── Page rendering ──
@@ -428,8 +426,6 @@
                 }).promise;
 
                 currentPage = pageNum;
-                prevBtn.disabled = currentPage <= 1;
-                nextBtn.disabled = currentPage >= totalPages;
                 document.getElementById('page-display').textContent = `Page ${currentPage} / ${totalPages}`;
                 const pct = totalPages > 0 ? Math.round((currentPage / totalPages) * 100) : 0;
                 document.getElementById('pct-display').textContent = pct + '%';
@@ -477,10 +473,7 @@
             renderPage(currentPage);
         });
 
-        // ── Navigation controls ──
-
-        prevBtn.addEventListener('click', (e) => { e.stopPropagation(); prevPage(); });
-        nextBtn.addEventListener('click', (e) => { e.stopPropagation(); nextPage(); });
+        // ── Keyboard navigation ──
 
         document.addEventListener('keydown', (e) => {
             if (document.querySelector('.confirm-modal.show')) return;
@@ -489,9 +482,59 @@
             if (e.key === 'ArrowLeft') { e.preventDefault(); prevPage(); }
             if (e.key === 'Home') { e.preventDefault(); renderPage(1); }
             if (e.key === 'End') { e.preventDefault(); renderPage(totalPages); }
+            if (e.key === 'ArrowUp') { e.preventDefault(); viewerWrap.scrollBy(0, -60); }
+            if (e.key === 'ArrowDown') { e.preventDefault(); viewerWrap.scrollBy(0, 60); }
             if (e.key === '+' || e.key === '=') { e.preventDefault(); document.getElementById('zoom-in-btn').click(); }
             if (e.key === '-') { e.preventDefault(); document.getElementById('zoom-out-btn').click(); }
         });
+
+        // ── Swipe navigation (touch + trackpad) ──
+
+        // Touch devices (phone/tablet): single-finger swipe
+        let touchStartX = null;
+        let touchStartY = null;
+        const SWIPE_THRESHOLD = 50;
+
+        viewerWrap.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            }
+        }, { passive: true });
+
+        viewerWrap.addEventListener('touchend', (e) => {
+            if (touchStartX === null) return;
+            const touch = e.changedTouches[0];
+            const dx = touch.clientX - touchStartX;
+            const dy = touch.clientY - touchStartY;
+            touchStartX = null;
+            touchStartY = null;
+
+            if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                if (dx < 0) nextPage();
+                else prevPage();
+            }
+        }, { passive: true });
+
+        // Mac trackpad: two-finger horizontal swipe (fires wheel events)
+        let wheelDeltaX = 0;
+        let wheelTimer = null;
+
+        viewerWrap.addEventListener('wheel', (e) => {
+            // Only act on horizontal scroll (trackpad swipe), not vertical
+            if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+
+            wheelDeltaX += e.deltaX;
+
+            clearTimeout(wheelTimer);
+            wheelTimer = setTimeout(() => {
+                if (Math.abs(wheelDeltaX) > SWIPE_THRESHOLD) {
+                    if (wheelDeltaX > 0) nextPage();
+                    else prevPage();
+                }
+                wheelDeltaX = 0;
+            }, 100);
+        }, { passive: true });
 
         // ── Load PDF ──
 
@@ -514,6 +557,9 @@
 
                 // Fit width on initial load
                 document.getElementById('zoom-fit-btn').click();
+
+                // Focus the viewer so keyboard shortcuts work immediately
+                viewerWrap.focus();
 
                 await refreshBookmarks();
 

@@ -29,7 +29,7 @@ header h1 {
 }
 
 #status-bar {
-    font-size: 0.85rem;
+    font-size: 1rem;
     color: #888;
 }
 
@@ -243,7 +243,6 @@ main {
 .col-filename { width: 35%; }
 .col-folder { width: 30%; }
 .col-size { width: 8%; }
-.col-date { width: 10%; }
 .col-actions { width: 17%; }
 
 #results-table td {
@@ -275,7 +274,7 @@ main {
     font-size: 0.85rem;
 }
 
-.size-cell, .date-cell {
+.size-cell {
     color: #888;
     white-space: nowrap;
     font-size: 0.85rem;
@@ -506,7 +505,7 @@ footer button:hover {
     background: none;
     color: #888;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 1rem;
 }
 
 .tab-btn:hover { color: #e0e0e0; border-color: #e94560; }
@@ -696,20 +695,130 @@ footer button:hover {
     grid-column: 1 / -1;
 }
 
+/* Mobile sidebar toggle - hidden on desktop */
+#mobile-sidebar-toggle {
+    display: none;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
-    #content-area {
-        flex-direction: column;
-    }
-    #sidebar {
+    #mobile-sidebar-toggle {
+        display: block;
         width: 100%;
+        padding: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #0f3460;
+        border-radius: 4px;
+        background: #16213e;
+        color: #888;
+        cursor: pointer;
+        font-size: 0.8rem;
+        text-align: center;
+    }
+
+    #mobile-sidebar-toggle:hover {
+        border-color: #e94560;
+        color: #e94560;
+    }
+    header {
+        padding: 8px 12px;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+    }
+
+    header h1 {
+        display: none;
+    }
+
+    header > div:first-child {
+        gap: 8px !important;
+    }
+
+    #tab-bar {
+        gap: 2px;
+    }
+
+    .tab-btn {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+    }
+
+    #status-bar {
+        font-size: 0.7rem;
+    }
+
+    main {
+        padding: 10px 12px;
+    }
+
+    /* Hide sidebar on mobile, toggle with button */
+    #sidebar {
+        display: none;
+        width: 100%;
+    }
+
+    #sidebar.mobile-visible {
         display: flex;
         gap: 20px;
     }
-    #sidebar > div {
+
+    #sidebar.mobile-visible > div {
         flex: 1;
     }
-    .filename-cell, .folder-cell {
-        max-width: 180px;
+
+    #content-area {
+        flex-direction: column;
+    }
+
+    /* Table: hide folder, size columns; only show filename + open */
+    .col-folder, .folder-cell,
+    .col-size, .size-cell {
+        display: none;
+    }
+
+    .col-filename { width: 70%; }
+    .col-actions { width: 30%; }
+
+    #results-table th,
+    #results-table td {
+        padding: 8px 6px;
+    }
+
+    .filename-cell {
+        max-width: none;
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    /* Hide Folder and Pin buttons on mobile (File Station not accessible) */
+    .folder-link, .pin-btn {
+        display: none;
+    }
+
+    .actions-cell a, .actions-cell button {
+        padding: 6px 14px;
+        font-size: 0.85rem;
+    }
+
+    #search-input {
+        font-size: 1rem;
+        padding: 10px 36px 10px 12px;
+    }
+
+    #search-filters {
+        gap: 8px;
+    }
+
+    #search-filters select {
+        font-size: 0.8rem;
+        padding: 5px 6px;
+    }
+
+    footer {
+        padding: 8px 12px;
+        padding-bottom: 50px;
     }
 }
