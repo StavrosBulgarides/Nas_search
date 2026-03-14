@@ -68,7 +68,7 @@
             color: #888;
         }
 
-        #zoom-controls button {
+        #zoom-controls button, #rotate-btn {
             padding: 4px 8px;
             border: 1px solid #0f3460;
             border-radius: 4px;
@@ -77,6 +77,8 @@
             cursor: pointer;
             font-size: 1rem;
         }
+
+        #rotate-btn:hover { border-color: #e94560; color: #e94560; }
 
         #zoom-controls button:hover { border-color: #e94560; color: #e94560; }
 
@@ -328,6 +330,7 @@
             #zoom-controls button { padding: 4px 6px; font-size: 0.9rem; }
             #zoom-level { font-size: 0.85rem; }
             #zoom-fit-btn { display: none; }
+            #rotate-btn { display: none; }
         }
     </style>
 </head>
@@ -345,6 +348,7 @@
                 <button id="zoom-in-btn" title="Zoom in">+</button>
                 <button id="zoom-fit-btn" title="Fit width">Fit</button>
             </div>
+            <button id="rotate-btn" title="Rotate 90°">Rotate</button>
             <a href="/" id="back-btn" style="font-size:1rem;">Back</a>
         </div>
     </div>
@@ -402,6 +406,7 @@
         let currentScale = 1.5;
         let allBookmarks = [];
         let rendering = false;
+        let currentRotation = 0;
 
         const canvas = document.getElementById('single-page-canvas');
         const ctx = canvas.getContext('2d');
@@ -415,7 +420,7 @@
 
             try {
                 const page = await pdfDoc.getPage(pageNum);
-                const viewport = page.getViewport({ scale: currentScale });
+                const viewport = page.getViewport({ scale: currentScale, rotation: currentRotation });
 
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
@@ -470,6 +475,11 @@
             const containerWidth = viewerWrap.clientWidth - 40;
             currentScale = containerWidth / viewport.width;
             updateZoomDisplay();
+            renderPage(currentPage);
+        });
+
+        document.getElementById('rotate-btn').addEventListener('click', () => {
+            currentRotation = (currentRotation + 90) % 360;
             renderPage(currentPage);
         });
 
